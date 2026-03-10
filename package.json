@@ -1,0 +1,51 @@
+{
+  "name": "bab",
+  "version": "0.1.1",
+  "description": "Bab MCP server with delegate plugins, AI provider registry, and plugin author SDK.",
+  "private": false,
+  "type": "module",
+  "packageManager": "bun@1.3.9",
+  "bin": {
+    "bab": "dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/cli.js",
+    "./sdk": "./dist/sdk/index.js",
+    "./sdk/test-utils": "./dist/sdk/test-utils.js"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "mkdir -p dist/sdk && bun build src/cli.ts --target bun --outfile dist/cli.js && bun build src/server.ts --target bun --outfile dist/server.js && bun build src/sdk/index.ts --target bun --outfile dist/sdk/index.js && bun build src/sdk/test-utils.ts --target bun --outfile dist/sdk/test-utils.js",
+    "build:binary": "bun build --compile src/cli.ts --outfile dist/bab",
+    "dev": "bun run src/server.ts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "prepack": "bun run build",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.58",
+    "@ai-sdk/google": "^3.0.43",
+    "@ai-sdk/openai": "^3.0.41",
+    "@ai-sdk/openai-compatible": "^2.0.35",
+    "@logtape/file": "^2.0.4",
+    "@logtape/logtape": "^2.0.4",
+    "@modelcontextprotocol/sdk": "1.27.1",
+    "@openrouter/ai-sdk-provider": "2.2.5",
+    "ai": "^6.0.116",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.6",
+    "zod-to-json-schema": "^3.25.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.6",
+    "@types/bun": "1.3.10",
+    "@types/node": "25.4.0",
+    "typescript": "^5.9.3"
+  }
+}
