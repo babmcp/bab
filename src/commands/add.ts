@@ -4,10 +4,15 @@ import { join, relative } from "node:path";
 import { createInterface } from "node:readline/promises";
 
 import type { BabConfig } from "../config";
+import { generateSkillContent, STATIC_TOOL_NAMES } from "../skills/generator";
+import { regenerateSkills } from "../skills/index";
 import type { PluginManifest } from "../types";
+import { VERSION } from "../version";
 import { CommandError } from "./errors";
 import {
   BUNDLED_PLUGIN_IDS,
+  discoverBundledPluginRecords,
+  discoverInstalledPluginRecords,
   formatTable,
   type PluginInstallMetadata,
   pathExists,
@@ -17,7 +22,6 @@ import {
   writeLine,
 } from "./shared";
 import { type ParsedSource, parseSource } from "./source-parser";
-import { VERSION } from "../version";
 
 interface RepositoryPluginCandidate {
   directory: string;
@@ -442,7 +446,7 @@ export async function runAddCommand(
 ): Promise<number> {
   const { source, yes } = normalizeCommandArgs(args);
 
-  await installPluginsFromSource({
+  const summaries = await installPluginsFromSource({
     config: context.config,
     isTty: context.isTty,
     source: parseSource(source),
@@ -451,6 +455,33 @@ export async function runAddCommand(
     stdout: context.stdout,
     yes,
   });
+
+  if (summaries.length > 0) {
+    try {
+      const [bundled, installed] = await Promise.all([
+        discoverBundledPluginRecords(),
+        discoverInstalledPluginRecords(context.config.paths),
+      ]);
+      const allPluginIds = [...bundled, ...installed]
+        .map((p) => p.manifest.id)
+        .sort();
+
+      await regenerateSkills(
+        context.config,
+        (pluginIds, toolNames) =>
+          generateSkillContent(context.config, pluginIds, toolNames),
+        {
+          stderr: context.stderr,
+          toolNames: STATIC_TOOL_NAMES,
+          pluginIds: allPluginIds,
+        },
+      );
+    } catch (error) {
+      context.stderr.write(
+        `Warning: failed to update agent skills: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+    }
+  }
 
   return 0;
 }
