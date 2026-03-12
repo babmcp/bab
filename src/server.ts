@@ -340,11 +340,10 @@ export async function main(): Promise<void> {
       .map((p) => p.manifest.id)
       .sort();
 
-    await regenerateSkills(
-      config,
-      (pIds, tNames) => generateSkillContent(config, pIds, tNames),
-      { toolNames, pluginIds },
-    );
+    await regenerateSkills(config, () => generateSkillContent(config), {
+      toolNames,
+      pluginIds,
+    });
   } catch (error) {
     logger.warn("Failed to auto-update agent skills on startup", {
       error: error instanceof Error ? error.message : String(error),

@@ -9,6 +9,10 @@ import { VERSION } from "../version";
 
 import type { SkillContent } from "./index";
 
+function mdCell(value: string): string {
+  return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+}
+
 interface ToolCatalogEntry {
   name: string;
   description: string;
@@ -146,7 +150,8 @@ function generateSkillMd(pluginRecords: CommandPluginRecord[]): string {
   const timestamp = new Date().toISOString();
 
   const toolRows = TOOL_CATALOG.map(
-    (t) => `| \`${t.name}\` | ${t.description} | ${t.whenToUse} |`,
+    (t) =>
+      `| \`${t.name}\` | ${mdCell(t.description)} | ${mdCell(t.whenToUse)} |`,
   ).join("\n");
 
   const pluginRows =
@@ -154,9 +159,9 @@ function generateSkillMd(pluginRecords: CommandPluginRecord[]): string {
       ? pluginRecords
           .map((p) => {
             const roles = p.manifest.roles
-              .map((r) => getRoleDescription(r).name)
+              .map((r) => mdCell(getRoleDescription(r).name))
               .join(", ");
-            return `| \`${p.manifest.id}\` | ${p.manifest.name} | \`${p.manifest.command}\` | ${roles} |`;
+            return `| \`${p.manifest.id}\` | ${mdCell(p.manifest.name)} | \`${p.manifest.command}\` | ${roles} |`;
           })
           .join("\n")
       : "| — | No plugins installed | — | — |";
@@ -325,8 +330,6 @@ See \`docs/plugin-authoring.md\` for authoring your own plugins.
 
 export async function generateSkillContent(
   config: BabConfig,
-  _pluginIds: string[],
-  _toolNames: string[],
 ): Promise<SkillContent> {
   const [bundled, installed] = await Promise.all([
     discoverBundledPluginRecords(),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -13,6 +13,7 @@ import {
   discoverAgents,
   isStale,
   regenerateSkills,
+  type SkillContent,
 } from "../src/skills/index";
 import { VERSION } from "../src/version";
 
@@ -155,8 +156,7 @@ describe("discoverAgents", () => {
 describe("regenerateSkills", () => {
   test("writes skill directory for discovered agents", async () => {
     const home = await mkdtemp(join(tmpdir(), "bab-regen-"));
-    const skillsDir = join(home, ".claude", "skills");
-    await mkdir(skillsDir, { recursive: true });
+    await mkdir(join(home, ".claude"), { recursive: true });
 
     const config = makeTempConfig(join(home, "config"));
     const stderr = captureStderr();
@@ -165,46 +165,69 @@ describe("regenerateSkills", () => {
     const result = await regenerateSkills(config, async () => content, {
       force: true,
       agent: "claude",
+      home,
       stderr: stderr.stream,
       toolNames: ["chat"],
       pluginIds: [],
     });
 
-    // Workaround: discoverAgents uses homedir() by default,
-    // so we need to test with the actual agent target
-    // Let's check that the function works end-to-end differently:
-    // We'll verify the directory structure was created
-    expect(
-      result.agentsUpdated.length + result.skipped.length,
-    ).toBeGreaterThanOrEqual(0);
+    expect(result.agentsUpdated).toContain("claude");
+
+    const skillMdPath = join(home, ".claude", "skills", "bab", "SKILL.md");
+    const metadataPath = join(
+      home,
+      ".claude",
+      "skills",
+      "bab",
+      ".bab-skills.json",
+    );
+    const toolsRefPath = join(
+      home,
+      ".claude",
+      "skills",
+      "bab",
+      "references",
+      "tools.md",
+    );
+
+    expect((await stat(skillMdPath)).isFile()).toBeTrue();
+    expect((await stat(metadataPath)).isFile()).toBeTrue();
+    expect((await stat(toolsRefPath)).isFile()).toBeTrue();
+
+    const metadata = JSON.parse(await Bun.file(metadataPath).text());
+    expect(metadata.schema_version).toBe(1);
+    expect(metadata.bab_version).toBe(VERSION);
+    expect(metadata.fingerprint).toMatch(/^[0-9a-f]{64}$/);
   });
 
   test("skips agents when fingerprint is fresh (not forced)", async () => {
     const home = await mkdtemp(join(tmpdir(), "bab-skip-"));
+    await mkdir(join(home, ".claude"), { recursive: true });
+
     const config = makeTempConfig(join(home, "config"));
     const stderr = captureStderr();
     const content = makeStubContent();
 
-    // First run: force write
     const firstResult = await regenerateSkills(config, async () => content, {
       force: true,
+      home,
       stderr: stderr.stream,
       toolNames: ["chat"],
       pluginIds: [],
     });
 
-    // Second run: same fingerprint, no force
+    expect(firstResult.agentsUpdated).toContain("claude");
+
     const secondResult = await regenerateSkills(config, async () => content, {
       force: false,
+      home,
       stderr: stderr.stream,
       toolNames: ["chat"],
       pluginIds: [],
     });
 
-    // All agents updated in first run should be skipped in second
-    for (const agent of firstResult.agentsUpdated) {
-      expect(secondResult.skipped).toContain(agent);
-    }
+    expect(secondResult.skipped).toContain("claude");
+    expect(secondResult.agentsUpdated).not.toContain("claude");
   });
 
   test("returns empty when no agents detected", async () => {
@@ -217,6 +240,7 @@ describe("regenerateSkills", () => {
       async () => makeStubContent(),
       {
         agent: "nonexistent-agent",
+        home,
         stderr: stderr.stream,
         toolNames: [],
         pluginIds: [],
@@ -225,6 +249,95 @@ describe("regenerateSkills", () => {
 
     expect(result.agentsUpdated).toEqual([]);
     expect(result.skipped).toEqual([]);
+  });
+
+  test("skips user-modified SKILL.md", async () => {
+    const home = await mkdtemp(join(tmpdir(), "bab-usermod-"));
+    const skillBabDir = join(home, ".claude", "skills", "bab");
+    await mkdir(skillBabDir, { recursive: true });
+
+    await Bun.write(
+      join(skillBabDir, "SKILL.md"),
+      "---\nname: bab\n---\n# My custom skill notes\n",
+    );
+
+    const config = makeTempConfig(join(home, "config"));
+    const stderr = captureStderr();
+
+    const result = await regenerateSkills(
+      config,
+      async () => makeStubContent(),
+      {
+        force: true,
+        home,
+        stderr: stderr.stream,
+        toolNames: ["chat"],
+        pluginIds: [],
+      },
+    );
+
+    expect(result.skipped).toContain("claude");
+    expect(stderr.output.join("")).toContain("user-modified");
+  });
+
+  test("skips when lock is held", async () => {
+    const home = await mkdtemp(join(tmpdir(), "bab-lock-"));
+    const skillsDir = join(home, ".claude", "skills");
+    await mkdir(join(skillsDir, ".bab-skillgen.lock"), { recursive: true });
+
+    const config = makeTempConfig(join(home, "config"));
+    const stderr = captureStderr();
+
+    const result = await regenerateSkills(
+      config,
+      async () => makeStubContent(),
+      {
+        force: true,
+        home,
+        stderr: stderr.stream,
+        toolNames: ["chat"],
+        pluginIds: [],
+      },
+    );
+
+    expect(result.skipped).toContain("claude");
+    expect(stderr.output.join("")).toContain("already in progress");
+  });
+
+  test("cleans up orphan staging directories", async () => {
+    const home = await mkdtemp(join(tmpdir(), "bab-orphan-"));
+    const skillsDir = join(home, ".claude", "skills");
+    const orphanStaging = join(skillsDir, ".bab-staging-old-nonce");
+    const orphanOld = join(skillsDir, ".bab-old-old-nonce");
+    await mkdir(orphanStaging, { recursive: true });
+    await mkdir(orphanOld, { recursive: true });
+
+    const config = makeTempConfig(join(home, "config"));
+    const stderr = captureStderr();
+
+    await regenerateSkills(config, async () => makeStubContent(), {
+      force: true,
+      home,
+      stderr: stderr.stream,
+      toolNames: ["chat"],
+      pluginIds: [],
+    });
+
+    let stagingExists = true;
+    let oldExists = true;
+    try {
+      await stat(orphanStaging);
+    } catch {
+      stagingExists = false;
+    }
+    try {
+      await stat(orphanOld);
+    } catch {
+      oldExists = false;
+    }
+
+    expect(stagingExists).toBeFalse();
+    expect(oldExists).toBeFalse();
   });
 });
 
@@ -249,7 +362,7 @@ describe("generateSkillContent", () => {
     const config = makeTempConfig(home);
     await mkdir(config.paths.pluginsDir, { recursive: true });
 
-    const content = await generateSkillContent(config, [], []);
+    const content = await generateSkillContent(config);
 
     expect(content.skillMd).toContain("---\nname: bab");
     expect(content.skillMd).toContain("user-invocable: false");
@@ -262,7 +375,7 @@ describe("generateSkillContent", () => {
     const config = makeTempConfig(home);
     await mkdir(config.paths.pluginsDir, { recursive: true });
 
-    const content = await generateSkillContent(config, [], []);
+    const content = await generateSkillContent(config);
 
     for (const toolName of STATIC_TOOL_NAMES) {
       expect(content.toolsReference).toContain(`## \`${toolName}\``);
@@ -274,7 +387,7 @@ describe("generateSkillContent", () => {
     const config = makeTempConfig(home);
     await mkdir(config.paths.pluginsDir, { recursive: true });
 
-    const content = await generateSkillContent(config, [], []);
+    const content = await generateSkillContent(config);
 
     expect(content.delegatePluginsReference).toContain(
       "Delegate Plugins Reference",

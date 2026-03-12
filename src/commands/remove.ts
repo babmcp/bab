@@ -135,8 +135,7 @@ export async function runRemoveCommand(
 
     await regenerateSkills(
       context.config,
-      (pluginIds, toolNames) =>
-        generateSkillContent(context.config, pluginIds, toolNames),
+      () => generateSkillContent(context.config),
       {
         stderr: context.stderr,
         toolNames: STATIC_TOOL_NAMES,

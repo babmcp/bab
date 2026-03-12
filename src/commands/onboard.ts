@@ -62,8 +62,7 @@ export async function runOnboardCommand(
 
   const result = await regenerateSkills(
     context.config,
-    (pluginIds, toolNames) =>
-      generateSkillContent(context.config, pluginIds, toolNames),
+    () => generateSkillContent(context.config),
     {
       force: true,
       agent,
