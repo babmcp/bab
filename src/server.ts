@@ -1,26 +1,32 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  CallToolRequestSchema,
   type CallToolRequest,
+  CallToolRequestSchema,
   type CallToolResult,
   ListToolsRequestSchema,
   type ListToolsResult,
-  type TextContent,
   type Tool as McpTool,
+  type TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
 
+import {
+  discoverBundledPluginRecords,
+  discoverInstalledPluginRecords,
+} from "./commands/shared";
 import { loadConfig } from "./config";
 import { ConversationStore } from "./memory/conversations";
 import { createProviderRegistry } from "./providers/registry";
+import { generateSkillContent } from "./skills/generator";
+import { regenerateSkills } from "./skills/index";
 import { createAnalyzeTool } from "./tools/analyze";
-import { createDelegateTool } from "./tools/delegate";
 import { createChallengeTool } from "./tools/challenge";
 import { createChatTool } from "./tools/chat";
 import { createCodeReviewTool } from "./tools/codereview";
 import { createConsensusTool } from "./tools/consensus";
 import { createDebugTool } from "./tools/debug";
+import { createDelegateTool } from "./tools/delegate";
 import { createDocgenTool } from "./tools/docgen";
 import { createListModelsTool } from "./tools/listmodels";
 import { createPlannerTool } from "./tools/planner";
@@ -31,7 +37,12 @@ import { createTestgenTool } from "./tools/testgen";
 import { createThinkDeepTool } from "./tools/thinkdeep";
 import { createTracerTool } from "./tools/tracer";
 import { createVersionTool } from "./tools/version";
-import { ToolErrorSchema, type Result, type ToolError, type ToolOutput } from "./types";
+import {
+  type Result,
+  type ToolError,
+  ToolErrorSchema,
+  type ToolOutput,
+} from "./types";
 import { configureLogging, logger } from "./utils/logger";
 import { VERSION } from "./version";
 
@@ -106,7 +117,9 @@ function toMcpTool(tool: RegisteredTool): McpTool {
     name: tool.name,
     description: tool.description,
     inputSchema: toMcpSchema(tool.inputSchema),
-    outputSchema: tool.outputSchema ? toMcpSchema(tool.outputSchema) : undefined,
+    outputSchema: tool.outputSchema
+      ? toMcpSchema(tool.outputSchema)
+      : undefined,
   };
 }
 
@@ -139,9 +152,8 @@ export class BabServer {
       logger.info("MCP server closed");
     };
 
-    this.protocolServer.setRequestHandler(
-      ListToolsRequestSchema,
-      async () => this.handleListToolsRequest(),
+    this.protocolServer.setRequestHandler(ListToolsRequestSchema, async () =>
+      this.handleListToolsRequest(),
     );
     this.protocolServer.setRequestHandler(
       CallToolRequestSchema,
@@ -163,7 +175,9 @@ export class BabServer {
     };
   }
 
-  async handleCallToolRequest(request: CallToolRequest): Promise<CallToolResult> {
+  async handleCallToolRequest(
+    request: CallToolRequest,
+  ): Promise<CallToolResult> {
     const { arguments: rawArguments = {}, name } = request.params;
     const tool = this.toolRegistry.get(name);
 
@@ -192,14 +206,20 @@ export class BabServer {
       const durationMs = Date.now() - startedAt;
 
       if (result.ok) {
-        logger.info("Tool call succeeded", { tool: name, duration_ms: durationMs });
+        logger.info("Tool call succeeded", {
+          tool: name,
+          duration_ms: durationMs,
+        });
         return {
           content: toTextContent(result.value),
           isError: false,
         };
       }
 
-      logger.warn("Tool call returned error", { tool: name, duration_ms: durationMs });
+      logger.warn("Tool call returned error", {
+        tool: name,
+        duration_ms: durationMs,
+      });
       return {
         content: toTextContent(result.error),
         isError: true,
@@ -309,6 +329,27 @@ export async function main(): Promise<void> {
   const server = new BabServer();
   registerCoreTools(server, config);
   const removeSignalHandlers = installSignalHandlers(server);
+
+  try {
+    const toolNames = Array.from(server.toolRegistry.keys()).sort();
+    const [bundled, installed] = await Promise.all([
+      discoverBundledPluginRecords(),
+      discoverInstalledPluginRecords(config.paths),
+    ]);
+    const pluginIds = [...bundled, ...installed]
+      .map((p) => p.manifest.id)
+      .sort();
+
+    await regenerateSkills(
+      config,
+      (pIds, tNames) => generateSkillContent(config, pIds, tNames),
+      { toolNames, pluginIds },
+    );
+  } catch (error) {
+    logger.warn("Failed to auto-update agent skills on startup", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   try {
     await server.connect();
