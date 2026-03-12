@@ -1,6 +1,7 @@
 # Bab
 
-[![Bab Showcase](https://github.com/babmcp/bab/raw/main/assets/videos/showcase-poster.png)](https://github.com/babmcp/bab/raw/main/assets/videos/showcase.webm)
+[Bab Showcase](https://github.com/user-attachments/assets/c00243eb-d0a0-4db5-87d5-bc1d84ff244d)
+
 
 Bab is a TypeScript MCP server built on Bun. It was inspired by the [PAL MCP Server](https://github.com/BeehiveInnovations/pal-mcp-server) and focuses on delegate CLI plugins, a thin Vercel AI SDK provider layer, and reusable MCP tooling.
 
