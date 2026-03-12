@@ -328,9 +328,15 @@ See \`docs/plugin-authoring.md\` for authoring your own plugins.
 `;
 }
 
+export interface SkillGenerationResult {
+  content: SkillContent;
+  toolNames: string[];
+  pluginIds: string[];
+}
+
 export async function generateSkillContent(
   config: BabConfig,
-): Promise<SkillContent> {
+): Promise<SkillGenerationResult> {
   const [bundled, installed] = await Promise.all([
     discoverBundledPluginRecords(),
     discoverInstalledPluginRecords(config.paths),
@@ -341,8 +347,12 @@ export async function generateSkillContent(
   );
 
   return {
-    skillMd: generateSkillMd(allPlugins),
-    toolsReference: generateToolsReference(),
-    delegatePluginsReference: generateDelegatePluginsReference(allPlugins),
+    content: {
+      skillMd: generateSkillMd(allPlugins),
+      toolsReference: generateToolsReference(),
+      delegatePluginsReference: generateDelegatePluginsReference(allPlugins),
+    },
+    toolNames: STATIC_TOOL_NAMES,
+    pluginIds: allPlugins.map((p) => p.manifest.id),
   };
 }

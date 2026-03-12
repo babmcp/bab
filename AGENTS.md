@@ -23,6 +23,10 @@ Task index: `tasks/index.md`
 - Commit after each task completes with message: `M<N>-T<NN>: <short description>`.
 - Merge to `main` only when the full milestone passes its exit criteria.
 - After a branch is merged into `main`, delete the merged branch locally and on the remote unless the user explicitly asks to keep it.
+- **Co-authorship**: Every commit must include a `Co-authored-by` trailer for each AI agent that contributed to the work. Add all that apply:
+  - `Co-authored-by: codex <codex@openai.com>`
+  - `Co-authored-by: claude <claude@anthropic.com>`
+  - `Co-authored-by: copilot <copilot@github.com>`
 
 ### Git worktrees for parallel work
 - **Use `git worktree`** when working on two independent tasks simultaneously (tasks with no shared dependencies).

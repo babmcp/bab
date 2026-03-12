@@ -11,10 +11,6 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
 
-import {
-  discoverBundledPluginRecords,
-  discoverInstalledPluginRecords,
-} from "./commands/shared";
 import { loadConfig } from "./config";
 import { ConversationStore } from "./memory/conversations";
 import { createProviderRegistry } from "./providers/registry";
@@ -331,19 +327,7 @@ export async function main(): Promise<void> {
   const removeSignalHandlers = installSignalHandlers(server);
 
   try {
-    const toolNames = Array.from(server.toolRegistry.keys()).sort();
-    const [bundled, installed] = await Promise.all([
-      discoverBundledPluginRecords(),
-      discoverInstalledPluginRecords(config.paths),
-    ]);
-    const pluginIds = [...bundled, ...installed]
-      .map((p) => p.manifest.id)
-      .sort();
-
-    await regenerateSkills(config, () => generateSkillContent(config), {
-      toolNames,
-      pluginIds,
-    });
+    await regenerateSkills(() => generateSkillContent(config));
   } catch (error) {
     logger.warn("Failed to auto-update agent skills on startup", {
       error: error instanceof Error ? error.message : String(error),

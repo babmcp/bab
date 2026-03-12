@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { z } from "zod/v4";
 import type { WritableLike } from "../commands/shared";
-import type { BabConfig } from "../config";
+
 import { VERSION } from "../version";
 
 export interface AgentTarget {
@@ -20,8 +20,6 @@ export interface RegenerateSkillsOptions {
   agent?: string;
   home?: string;
   stderr?: WritableLike;
-  toolNames?: string[];
-  pluginIds?: string[];
 }
 
 export interface SkillContent {
@@ -264,15 +262,17 @@ async function writeSkillDirectory(
   }
 }
 
+export interface GenerateResult {
+  content: SkillContent;
+  toolNames: string[];
+  pluginIds: string[];
+}
+
 export async function regenerateSkills(
-  _config: BabConfig,
-  generateContent: () => Promise<SkillContent>,
+  generateContent: () => Promise<GenerateResult>,
   options: RegenerateSkillsOptions = {},
 ): Promise<{ agentsUpdated: string[]; skipped: string[] }> {
   const stderr = options.stderr ?? process.stderr;
-  const toolNames = options.toolNames ?? [];
-  const pluginIds = options.pluginIds ?? [];
-  const fingerprint = computeFingerprint(VERSION, pluginIds, toolNames);
 
   const agents = await discoverAgents(options.agent, options.home);
 
@@ -283,7 +283,19 @@ export async function regenerateSkills(
   const agentsUpdated: string[] = [];
   const skipped: string[] = [];
 
-  let content: SkillContent | undefined;
+  let generated: GenerateResult | undefined;
+  let fingerprint: string | undefined;
+
+  async function ensureGenerated(): Promise<void> {
+    if (!generated) {
+      generated = await generateContent();
+      fingerprint = computeFingerprint(
+        VERSION,
+        generated.pluginIds,
+        generated.toolNames,
+      );
+    }
+  }
 
   for (const agent of agents) {
     try {
@@ -296,9 +308,13 @@ export async function regenerateSkills(
       if (!options.force) {
         const existing = await readMetadata(agent.skillsDir, stderr);
 
-        if (!isStale(existing, fingerprint)) {
-          skipped.push(agent.id);
-          continue;
+        if (existing) {
+          await ensureGenerated();
+
+          if (!isStale(existing, fingerprint as string)) {
+            skipped.push(agent.id);
+            continue;
+          }
         }
       }
 
@@ -307,15 +323,13 @@ export async function regenerateSkills(
         continue;
       }
 
-      if (!content) {
-        content = await generateContent();
-      }
+      await ensureGenerated();
 
       const metadata: SkillsMetadata = {
         schema_version: 1,
         bab_version: VERSION,
         generated_at: new Date().toISOString(),
-        fingerprint,
+        fingerprint: fingerprint as string,
       };
 
       const locked = await acquireLock(agent.skillsDir);
@@ -331,7 +345,7 @@ export async function regenerateSkills(
       try {
         const written = await writeSkillDirectory(
           agent.skillsDir,
-          content,
+          (generated as GenerateResult).content,
           metadata,
           stderr,
         );

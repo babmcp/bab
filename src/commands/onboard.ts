@@ -2,12 +2,7 @@ import type { BabConfig } from "../config";
 import { generateSkillContent, STATIC_TOOL_NAMES } from "../skills/generator";
 import { regenerateSkills } from "../skills/index";
 import { CommandError } from "./errors";
-import {
-  discoverBundledPluginRecords,
-  discoverInstalledPluginRecords,
-  type WritableLike,
-  writeLine,
-} from "./shared";
+import { type WritableLike, writeLine } from "./shared";
 
 interface OnboardCommandContext {
   config: BabConfig;
@@ -51,24 +46,12 @@ export async function runOnboardCommand(
 ): Promise<number> {
   const { agent } = normalizeCommandArgs(args);
 
-  const [bundled, installed] = await Promise.all([
-    discoverBundledPluginRecords(),
-    discoverInstalledPluginRecords(context.config.paths),
-  ]);
-
-  const allPluginIds = [...bundled, ...installed]
-    .map((p) => p.manifest.id)
-    .sort();
-
   const result = await regenerateSkills(
-    context.config,
     () => generateSkillContent(context.config),
     {
       force: true,
       agent,
       stderr: context.stderr,
-      toolNames: STATIC_TOOL_NAMES,
-      pluginIds: allPluginIds,
     },
   );
 
@@ -88,10 +71,7 @@ export async function runOnboardCommand(
     writeLine(context.stdout, `Skipped: ${result.skipped.join(", ")}`);
   }
 
-  writeLine(
-    context.stdout,
-    `Tools: ${STATIC_TOOL_NAMES.length}, Plugins: ${allPluginIds.length}`,
-  );
+  writeLine(context.stdout, `Tools: ${STATIC_TOOL_NAMES.length}`);
 
   return 0;
 }

@@ -2,12 +2,11 @@ import { lstat, realpath, rm } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
 
 import type { BabConfig } from "../config";
-import { generateSkillContent, STATIC_TOOL_NAMES } from "../skills/generator";
+import { generateSkillContent } from "../skills/generator";
 import { regenerateSkills } from "../skills/index";
 import { CommandError } from "./errors";
 import {
   BUNDLED_PLUGIN_IDS,
-  discoverBundledPluginRecords,
   discoverInstalledPluginRecords,
   type WritableLike,
   writeLine,
@@ -125,23 +124,9 @@ export async function runRemoveCommand(
   writeLine(context.stdout, `Removed plugin ${pluginId}`);
 
   try {
-    const [bundled, installed] = await Promise.all([
-      discoverBundledPluginRecords(),
-      discoverInstalledPluginRecords(context.config.paths),
-    ]);
-    const allPluginIds = [...bundled, ...installed]
-      .map((p) => p.manifest.id)
-      .sort();
-
-    await regenerateSkills(
-      context.config,
-      () => generateSkillContent(context.config),
-      {
-        stderr: context.stderr,
-        toolNames: STATIC_TOOL_NAMES,
-        pluginIds: allPluginIds,
-      },
-    );
+    await regenerateSkills(() => generateSkillContent(context.config), {
+      stderr: context.stderr,
+    });
   } catch (error) {
     context.stderr.write(
       `Warning: failed to update agent skills: ${error instanceof Error ? error.message : String(error)}\n`,
