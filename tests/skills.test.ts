@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { BabConfig } from "../src/config";
+import { BabServer, registerCoreTools } from "../src/server";
 import {
   generateSkillContent,
   STATIC_TOOL_NAMES,
@@ -370,5 +371,74 @@ describe("generateSkillContent", () => {
     expect(result.content.delegatePluginsReference).toContain(
       "Delegate Plugins Reference",
     );
+  });
+});
+
+describe("post-add/remove skill regeneration", () => {
+  test("regenerateSkills updates agents after plugin change", async () => {
+    const home = await mkdtemp(join(tmpdir(), "bab-postadd-"));
+    await mkdir(join(home, ".claude"), { recursive: true });
+
+    const stderr = captureStderr();
+    const stubResult = makeStubResult();
+
+    const result = await regenerateSkills(async () => stubResult, {
+      force: true,
+      home,
+      stderr: stderr.stream,
+    });
+
+    expect(result.agentsUpdated).toContain("claude");
+
+    const skillMdPath = join(home, ".claude", "skills", "bab", "SKILL.md");
+    expect((await stat(skillMdPath)).isFile()).toBeTrue();
+  });
+
+  test("regenerateSkills with changed plugins produces new fingerprint", async () => {
+    const home = await mkdtemp(join(tmpdir(), "bab-pluginchange-"));
+    await mkdir(join(home, ".claude"), { recursive: true });
+
+    const stderr = captureStderr();
+
+    const resultA = makeStubResult();
+    resultA.pluginIds = ["plugin-a"];
+    await regenerateSkills(async () => resultA, {
+      force: true,
+      home,
+      stderr: stderr.stream,
+    });
+
+    const metadataPathA = join(
+      home,
+      ".claude",
+      "skills",
+      "bab",
+      ".bab-skills.json",
+    );
+    const metaA = JSON.parse(await Bun.file(metadataPathA).text());
+
+    const resultB = makeStubResult();
+    resultB.pluginIds = ["plugin-a", "plugin-b"];
+    await regenerateSkills(async () => resultB, {
+      force: true,
+      home,
+      stderr: stderr.stream,
+    });
+
+    const metaB = JSON.parse(await Bun.file(metadataPathA).text());
+    expect(metaA.fingerprint).not.toBe(metaB.fingerprint);
+  });
+});
+
+describe("startup tool registration", () => {
+  test("registered tool names match STATIC_TOOL_NAMES catalog", async () => {
+    const config = makeTempConfig("/tmp/bab-startup-test");
+    const server = new BabServer();
+    registerCoreTools(server, config);
+
+    const registeredNames = Array.from(server.toolRegistry.keys()).sort();
+    const catalogNames = [...STATIC_TOOL_NAMES].sort();
+
+    expect(registeredNames).toEqual(catalogNames);
   });
 });

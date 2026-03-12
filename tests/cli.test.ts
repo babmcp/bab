@@ -27,6 +27,7 @@ function createCliDependencies(
     loadConfig: async () => TEST_CONFIG,
     runAddCommand: async () => 0,
     runListCommand: async () => 0,
+    runOnboardCommand: async () => 0,
     runRemoveCommand: async () => 0,
     startServer: async () => {},
     stdin: { isTTY: false } as NodeJS.ReadStream,
@@ -120,6 +121,52 @@ describe("CLI", () => {
       "Unknown command: unknown",
     );
     expect(dependencies.stderrWrites.join("")).toContain("Bab CLI");
+  });
+
+  test("delegates onboard commands without starting the server", async () => {
+    const startServer = mock(async () => {});
+    const runOnboardCommand = mock(async () => 0);
+    const dependencies = createCliDependencies({
+      runOnboardCommand,
+      startServer,
+    });
+
+    const exitCode = await runCli(["onboard"], dependencies);
+
+    expect(exitCode).toBe(0);
+    expect(startServer).not.toHaveBeenCalled();
+    expect(runOnboardCommand).toHaveBeenCalledTimes(1);
+  });
+
+  test("passes --agent flag through to onboard command", async () => {
+    let receivedArgs: string[] = [];
+    const runOnboardCommand = mock(async (args: string[]) => {
+      receivedArgs = args;
+      return 0;
+    });
+    const dependencies = createCliDependencies({ runOnboardCommand });
+
+    const exitCode = await runCli(
+      ["onboard", "--agent", "claude"],
+      dependencies,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(runOnboardCommand).toHaveBeenCalledTimes(1);
+    expect(receivedArgs).toEqual(["--agent", "claude"]);
+  });
+
+  test("prints onboard help without starting the server", async () => {
+    const startServer = mock(async () => {});
+    const dependencies = createCliDependencies({ startServer });
+
+    const exitCode = await runCli(["onboard", "--help"], dependencies);
+
+    expect(exitCode).toBe(0);
+    expect(startServer).not.toHaveBeenCalled();
+    expect(dependencies.stdoutWrites.join("")).toContain(
+      "bab onboard [--agent <name>]",
+    );
   });
 
   test("delegates list commands without starting the server", async () => {
