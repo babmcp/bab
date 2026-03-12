@@ -1,5 +1,5 @@
 {
-  "name": "bab",
+  "name": "@babmcp/bab",
   "version": "0.1.1",
   "description": "Bab MCP server with delegate plugins, AI provider registry, and plugin author SDK.",
   "private": false,

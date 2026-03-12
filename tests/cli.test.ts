@@ -103,7 +103,7 @@ describe("CLI", () => {
     const runAddCommand = mock(async () => 0);
     const dependencies = createCliDependencies({ runAddCommand, startServer });
 
-    const exitCode = await runCli(["add", "zaherg/bab-plugins"], dependencies);
+    const exitCode = await runCli(["add", "babmcp/plugins"], dependencies);
 
     expect(exitCode).toBe(0);
     expect(startServer).not.toHaveBeenCalled();

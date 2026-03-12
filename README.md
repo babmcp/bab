@@ -30,7 +30,7 @@ Milestones 1 through 8 are complete. The server starts over stdio, ships the del
 - Full core and specialized workflow tool suite
 - In-memory conversation storage with continuation support and a 20-turn limit
 - CLI entrypoint with `serve`, `add`, `remove`, `list`, and `test-plugin` commands
-- Plugin SDK export surface via `bab/sdk`
+- Plugin SDK export surface via `@babmcp/bab/sdk`
 - Structured stderr logging
 - Bun-based test and build workflow
 

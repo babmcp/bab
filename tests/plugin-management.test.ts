@@ -107,38 +107,38 @@ async function createGitRepository(
 
 describe("source parser", () => {
   test("parses GitHub shorthand", () => {
-    expect(parseSource("zaherg/bab-plugins")).toEqual({
+    expect(parseSource("babmcp/plugins")).toEqual({
       kind: "github_shorthand",
-      original: "zaherg/bab-plugins",
-      url: "https://github.com/zaherg/bab-plugins.git",
+      original: "babmcp/plugins",
+      url: "https://github.com/babmcp/plugins.git",
     });
   });
 
   test("parses GitHub shorthand refs", () => {
-    expect(parseSource("zaherg/bab-plugins#v1.0")).toEqual({
+    expect(parseSource("babmcp/plugins#v1.0")).toEqual({
       kind: "github_shorthand",
-      original: "zaherg/bab-plugins#v1.0",
+      original: "babmcp/plugins#v1.0",
       ref: "v1.0",
-      url: "https://github.com/zaherg/bab-plugins.git",
+      url: "https://github.com/babmcp/plugins.git",
     });
   });
 
   test("passes through ssh URLs", () => {
-    expect(parseSource("git@github.com:zaherg/bab-plugins.git")).toEqual({
+    expect(parseSource("git@github.com:babmcp/plugins.git")).toEqual({
       kind: "git_url",
-      original: "git@github.com:zaherg/bab-plugins.git",
-      url: "git@github.com:zaherg/bab-plugins.git",
+      original: "git@github.com:babmcp/plugins.git",
+      url: "git@github.com:babmcp/plugins.git",
     });
   });
 
   test("passes through full URLs and preserves slash refs", () => {
     expect(
-      parseSource("https://github.com/zaherg/bab-plugins.git#feature/plugins"),
+      parseSource("https://github.com/babmcp/plugins.git#feature/plugins"),
     ).toEqual({
       kind: "git_url",
-      original: "https://github.com/zaherg/bab-plugins.git#feature/plugins",
+      original: "https://github.com/babmcp/plugins.git#feature/plugins",
       ref: "feature/plugins",
-      url: "https://github.com/zaherg/bab-plugins.git",
+      url: "https://github.com/babmcp/plugins.git",
     });
   });
 
@@ -168,7 +168,7 @@ describe("plugin install command", () => {
       isTty: false,
       source: {
         kind: "git_url",
-        original: "git@github.com:zaherg/bab-plugins.git",
+        original: "git@github.com:babmcp/plugins.git",
         url: `file://${repositoryDirectory}`,
       },
       stderr: createCaptureStream([]),
@@ -190,7 +190,7 @@ describe("plugin install command", () => {
     expect(metadata.plugin_id).toBe("claude");
     expect(metadata.plugin_subdir).toBe(".");
     expect(metadata.source_original).toBe(
-      "git@github.com:zaherg/bab-plugins.git",
+      "git@github.com:babmcp/plugins.git",
     );
     expect(metadata.source_url).toBe(`file://${repositoryDirectory}`);
     expect(await readdir(tempParent)).toEqual([]);
@@ -210,7 +210,7 @@ describe("plugin install command", () => {
       isTty: false,
       source: {
         kind: "git_url",
-        original: "git@github.com:zaherg/bab-plugins.git",
+        original: "git@github.com:babmcp/plugins.git",
         url: `file://${repositoryDirectory}`,
       },
       stderr: createCaptureStream([]),
@@ -238,7 +238,7 @@ describe("plugin install command", () => {
         isTty: false,
         source: {
           kind: "git_url",
-          original: "git@github.com:zaherg/bab-plugins.git",
+          original: "git@github.com:babmcp/plugins.git",
           url: `file://${repositoryDirectory}`,
         },
         stderr: createCaptureStream([]),
@@ -264,7 +264,7 @@ describe("plugin install command", () => {
         isTty: false,
         source: {
           kind: "git_url",
-          original: "git@github.com:zaherg/bab-plugins.git",
+          original: "git@github.com:babmcp/plugins.git",
           url: `file://${repositoryDirectory}`,
         },
         stderr: createCaptureStream([]),
@@ -299,7 +299,7 @@ describe("plugin install command", () => {
         isTty: false,
         source: {
           kind: "git_url",
-          original: "git@github.com:zaherg/bab-plugins.git",
+          original: "git@github.com:babmcp/plugins.git",
           url: `file://${invalidRepository}`,
         },
         stderr: createCaptureStream([]),
@@ -315,7 +315,7 @@ describe("plugin install command", () => {
         isTty: false,
         source: {
           kind: "git_url",
-          original: "git@github.com:zaherg/bab-plugins.git",
+          original: "git@github.com:babmcp/plugins.git",
           url: `file://${duplicateRepository}`,
         },
         stderr: createCaptureStream([]),
@@ -351,7 +351,7 @@ describe("plugin install command", () => {
         isTty: false,
         source: {
           kind: "git_url",
-          original: "git@github.com:zaherg/bab-plugins.git",
+          original: "git@github.com:babmcp/plugins.git",
           url: `file://${bundledConflictRepository}`,
         },
         stderr: createCaptureStream([]),
@@ -367,7 +367,7 @@ describe("plugin install command", () => {
         isTty: false,
         source: {
           kind: "git_url",
-          original: "git@github.com:zaherg/bab-plugins.git",
+          original: "git@github.com:babmcp/plugins.git",
           url: `file://${installedConflictRepository}`,
         },
         stderr: createCaptureStream([]),
@@ -392,7 +392,7 @@ describe("plugin install command", () => {
         isTty: false,
         source: {
           kind: "git_url",
-          original: "git@github.com:zaherg/bab-plugins.git",
+          original: "git@github.com:babmcp/plugins.git",
           url: `file://${repositoryDirectory}`,
         },
         stderr: createCaptureStream([]),
@@ -423,7 +423,7 @@ describe("plugin install command", () => {
           isTty: false,
           source: {
             kind: "git_url",
-            original: "git@github.com:zaherg/bab-plugins.git",
+            original: "git@github.com:babmcp/plugins.git",
             url: `file://${repositoryDirectory}`,
           },
           stderr: createCaptureStream([]),
@@ -500,8 +500,8 @@ describe("command wrappers", () => {
         plugin_subdir: ".",
         resolved_commit: "abc123",
         schema_version: 1,
-        source_original: "git@github.com:zaherg/bab-plugins.git",
-        source_url: "git@github.com:zaherg/bab-plugins.git",
+        source_original: "git@github.com:babmcp/plugins.git",
+        source_url: "git@github.com:babmcp/plugins.git",
       }),
     );
 
@@ -513,7 +513,7 @@ describe("command wrappers", () => {
     expect(exitCode).toBe(0);
     expect(stdout.join("")).toContain("claude");
     expect(stdout.join("")).toContain("opencode");
-    expect(stdout.join("")).toContain("git@github.com:zaherg/bab-plugins.git");
+    expect(stdout.join("")).toContain("git@github.com:babmcp/plugins.git");
   });
 
   test("getBundledPluginsRoot resolves from a compiled-binary layout", async () => {

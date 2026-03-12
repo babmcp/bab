@@ -81,8 +81,8 @@ See [Adapter Tutorial](./adapter-tutorial.md) for the full interface and a real-
 Plugin authors can import types and utilities from the published SDK:
 
 ```ts
-import type { DelegatePluginAdapter, DelegateRunInput } from "bab/sdk";
-import { DelegateEventSchema, PluginManifestSchema } from "bab/sdk";
+import type { DelegatePluginAdapter, DelegateRunInput } from "@babmcp/bab/sdk";
+import { DelegateEventSchema, PluginManifestSchema } from "@babmcp/bab/sdk";
 ```
 
 Key SDK exports:
