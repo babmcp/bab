@@ -3,6 +3,7 @@
 import { runAddCommand as executeAddCommand } from "./commands/add";
 import { CommandError } from "./commands/errors";
 import { runListCommand as executeListCommand } from "./commands/list";
+import { runOnboardCommand as executeOnboardCommand } from "./commands/onboard";
 import { runRemoveCommand as executeRemoveCommand } from "./commands/remove";
 import { loadConfig } from "./config";
 import { validatePluginDirectory } from "./plugin-sdk/conformance";
@@ -17,6 +18,7 @@ export interface CliDependencies {
   loadConfig: typeof loadConfig;
   runAddCommand: typeof executeAddCommand;
   runListCommand: typeof executeListCommand;
+  runOnboardCommand: typeof executeOnboardCommand;
   runRemoveCommand: typeof executeRemoveCommand;
   startServer: typeof startServer;
   stdin: NodeJS.ReadStream;
@@ -49,6 +51,7 @@ const defaultCliDependencies: CliDependencies = {
   loadConfig,
   runAddCommand: executeAddCommand,
   runListCommand: executeListCommand,
+  runOnboardCommand: executeOnboardCommand,
   runRemoveCommand: executeRemoveCommand,
   startServer,
   stderr: process.stderr,
@@ -76,6 +79,7 @@ export function getCliHelpText(): string {
     "  bab add <source>",
     "  bab remove <plugin-id>",
     "  bab list",
+    "  bab onboard",
     "  bab help",
     "  bab test-plugin <plugin-directory>",
     "",
@@ -83,6 +87,7 @@ export function getCliHelpText(): string {
     "  add                   Install plugin(s) from a git source",
     "  remove                Remove an installed plugin",
     "  list                  List bundled and installed plugins",
+    "  onboard               Generate Agent Skills for detected host agents",
     "  help                  Show CLI usage information",
     "  serve                 Start the Bab MCP server over stdio",
     "  test-plugin <dir>     Validate a delegate plugin directory",
@@ -114,6 +119,18 @@ export function getListHelpText(): string {
     "  bab list",
     "",
     "List bundled and installed plugins.",
+  ].join("\n");
+}
+
+export function getOnboardHelpText(): string {
+  return [
+    "Usage:",
+    "  bab onboard [--agent <name>]",
+    "",
+    "Generate Agent Skills for detected host agents (Claude Code, Codex, etc.).",
+    "",
+    "Options:",
+    "  --agent <name>  Target a specific agent (e.g. claude, codex)",
   ].join("\n");
 }
 
@@ -241,9 +258,28 @@ async function runTestPluginCommand(
   return result.valid ? 0 : 1;
 }
 
+async function runOnboardCommand(
+  args: string[],
+  dependencies: CliDependencies,
+): Promise<number> {
+  if (isHelpFlag(args[0])) {
+    writeLine(dependencies.stdout, getOnboardHelpText());
+    return 0;
+  }
+
+  const config = await dependencies.loadConfig();
+
+  return dependencies.runOnboardCommand(args, {
+    config,
+    stderr: dependencies.stderr,
+    stdout: dependencies.stdout,
+  });
+}
+
 const commandHandlers: Record<string, CliCommandHandler> = {
   add: runAddCommand,
   list: runListCommand,
+  onboard: runOnboardCommand,
   remove: runRemoveCommand,
   serve: runServeCommand,
   "test-plugin": runTestPluginCommand,
