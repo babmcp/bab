@@ -19,6 +19,11 @@ M1 (MCP Server Core)
     ├── Phase 2: T07→T08→T09→T10 (install)  ── parallel with Phase 1 after T01
     ├── Phase 3: T11, T12 (stretch)          ── after Phase 2
     └── Phase 4: T13→T14 (extract plugins)   ── after T06 + T10 (env frozen + install verified)
+│
+└── M10 (Skill Generation) ── after M9
+    ├── Phase 1: T01→T02→T03 (core module)
+    ├── Phase 2: T03 (onboard), T04 (hooks), T05 (startup) ── after T02
+    └── Phase 3: T06 (tests) ── after T03+T04+T05
 ```
 
 Notes:
@@ -41,7 +46,8 @@ Notes:
 | M6 | Core Tools | completed | 6/6 | M1 | M7 |
 | M7 | Specialized Tools | completed | 3/3 | M6 | M8 |
 | M8 | Polish | completed | 3/3 | M7 + all plugins | — |
-| M9 | Plugin Env & Install | completed | 14/14 | M8 | — |
+| M9 | Plugin Env & Install | completed | 14/14 | M8 | M10 |
+| M10 | Skill Generation | completed | 6/6 | M9 | — |
 
 ---
 
@@ -136,3 +142,14 @@ Notes:
 | M9-T12 | `bab list` (bundled + installed, source info) | M9-T09 | completed |
 | M9-T13 | Create bab-plugins repo (claude, codex, copilot) | M9-T06, M9-T10 | completed |
 | M9-T14 | Remove extracted plugins from bab | M9-T13 | completed |
+
+### M10 — Skill Generation (Agent Skills open standard)
+
+| Task | Description | Deps | Status |
+|------|-------------|------|--------|
+| M10-T01 | Agent discovery + staleness + writer | — | completed |
+| M10-T02 | Skill content generator (SKILL.md + references/) | M10-T01 | completed |
+| M10-T03 | `bab onboard` CLI command | M10-T02 | completed |
+| M10-T04 | Post-add/remove hooks | M10-T02 | completed |
+| M10-T05 | Server startup auto-check | M10-T02 | completed |
+| M10-T06 | Tests | M10-T03, M10-T04, M10-T05 | completed |
