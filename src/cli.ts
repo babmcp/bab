@@ -12,6 +12,7 @@ import { main as startServer } from "./server";
 import { VERSION } from "./version";
 
 interface WritableLike {
+  isTTY?: boolean;
   write(chunk: string): unknown;
 }
 
@@ -69,9 +70,109 @@ function isHelpFlag(argument?: string): boolean {
   return argument === "--help" || argument === "-h" || argument === "help";
 }
 
-export function getCliHelpText(): string {
+const CLI_TIPS = [
+  "Run `bab onboard` to generate host-agent skills.",
+  "Use `bab add <source>` to install plugin packs.",
+  "Check updates without installing via `bab selfupdate --check`.",
+  "Validate a plugin with `bab test-plugin <plugin-directory>`.",
+  "Use `bab list` to inspect bundled and installed plugins.",
+] as const;
+
+const ANSI = {
+  amber: "\u001B[38;5;179m",
+  bold: "\u001B[1m",
+  dim: "\u001B[38;5;145m",
+  indigo: "\u001B[38;5;111m",
+  reset: "\u001B[0m",
+  white: "\u001B[97m",
+} as const;
+
+const CLI_BANNER_WIDTH = 72;
+
+interface CliHelpTextOptions {
+  color?: boolean;
+  tipIndex?: number;
+}
+
+function colorize(text: string, enabled: boolean, ...codes: string[]): string {
+  if (!enabled || codes.length === 0) {
+    return text;
+  }
+
+  return `${codes.join("")}${text}${ANSI.reset}`;
+}
+
+function isInteractiveHelp(stream: WritableLike): boolean {
+  return (
+    stream.isTTY === true &&
+    process.env.CI === undefined &&
+    process.env.TERM !== "dumb"
+  );
+}
+
+function shouldColorizeHelp(stream: WritableLike): boolean {
+  return isInteractiveHelp(stream) && process.env.NO_COLOR === undefined;
+}
+
+function pickCliTipIndex(): number {
+  return Math.floor(Math.random() * CLI_TIPS.length);
+}
+
+function renderBannerRow(
+  left: string,
+  right: string,
+  color: boolean,
+  rightTone: "title" | "subtitle" | "tip" | "plain",
+): string {
+  const separator = left.length > 0 && right.length > 0 ? "  " : "";
+  const plainContent = `${left}${separator}${right}`;
+  const padding = " ".repeat(Math.max(0, CLI_BANNER_WIDTH - plainContent.length));
+
+  let styledRight = right;
+
+  if (rightTone === "title") {
+    styledRight = colorize(right, color, ANSI.white, ANSI.bold);
+  } else if (rightTone === "subtitle") {
+    styledRight = colorize(right, color, ANSI.indigo);
+  } else if (rightTone === "tip") {
+    styledRight = colorize(right, color, ANSI.dim);
+  }
+
   return [
-    "Bab CLI",
+    colorize("|", color, ANSI.amber),
+    " ",
+    colorize(left, color, ANSI.amber),
+    separator,
+    styledRight,
+    padding,
+    " ",
+    colorize("|", color, ANSI.amber),
+  ].join("");
+}
+
+function getCliBanner(tipIndex: number, color: boolean): string {
+  const topBorder = colorize(
+    `+${"-".repeat(CLI_BANNER_WIDTH + 2)}+`,
+    color,
+    ANSI.amber,
+  );
+  const tip = CLI_TIPS[tipIndex] ?? CLI_TIPS[0];
+  const rows = [
+    renderBannerRow("", `Bab CLI v${VERSION}`, color, "title"),
+    renderBannerRow("", "MCP server, plugins, and CLI tools.", color, "subtitle"),
+    renderBannerRow("", "Add plugins, onboard agents, validate adapters.", color, "plain"),
+    renderBannerRow("", `Tip: ${tip}`, color, "tip"),
+  ];
+
+  return [topBorder, ...rows, topBorder].join("\n");
+}
+
+export function getCliHelpText(options: CliHelpTextOptions = {}): string {
+  const tipIndex = options.tipIndex ?? 0;
+  const color = options.color ?? false;
+
+  return [
+    getCliBanner(tipIndex, color),
     "",
     "Usage:",
     "  bab",
@@ -171,7 +272,13 @@ async function runHelpCommand(
   _args: string[],
   dependencies: CliDependencies,
 ): Promise<number> {
-  writeLine(dependencies.stdout, getCliHelpText());
+  writeLine(
+    dependencies.stdout,
+    getCliHelpText({
+      color: shouldColorizeHelp(dependencies.stdout),
+      tipIndex: isInteractiveHelp(dependencies.stdout) ? pickCliTipIndex() : 0,
+    }),
+  );
   return 0;
 }
 
@@ -343,7 +450,13 @@ export async function runCli(
 
   if (!handler) {
     writeLine(dependencies.stderr, `Unknown command: ${command}`);
-    writeLine(dependencies.stderr, getCliHelpText());
+    writeLine(
+      dependencies.stderr,
+      getCliHelpText({
+        color: shouldColorizeHelp(dependencies.stderr),
+        tipIndex: isInteractiveHelp(dependencies.stderr) ? pickCliTipIndex() : 0,
+      }),
+    );
     return 1;
   }
 

@@ -61,6 +61,8 @@ function currentProcessEnv(): Record<string, string> {
 
 describe("CLI", () => {
   test("shows help text", () => {
+    expect(getCliHelpText()).toContain("Bab CLI v");
+    expect(getCliHelpText()).toContain("MCP server, plugins, and CLI tools.");
     expect(getCliHelpText()).toContain("bab add <source>");
     expect(getCliHelpText()).toContain("bab --version");
   });
