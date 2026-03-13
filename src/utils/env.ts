@@ -43,7 +43,7 @@ const FILE_ENV_DENYLIST = new Set([
 const PROCESS_ENV_STRIP_PREFIXES = ["CLAUDE_", "CLAUDECODE"];
 
 /** Dangerous env vars stripped from process env before passing to delegates. */
-const DELEGATE_ENV_DENYLIST = new Set(RUNTIME_INJECTION_VARS);
+const DELEGATE_ENV_DENYLIST: Set<string> = new Set(RUNTIME_INJECTION_VARS);
 
 function isFileEnvDenied(key: string): boolean {
   return FILE_ENV_DENYLIST.has(key) || key.startsWith("BAB_");

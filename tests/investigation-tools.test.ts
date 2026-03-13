@@ -27,6 +27,7 @@ describe("investigation tools", () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createDebugTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "openai-key" }),
         generateTextFn: async (args) => {
@@ -80,6 +81,7 @@ describe("investigation tools", () => {
 
     const tool = createAnalyzeTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "openai-key" }),
         generateTextFn: async (args) => {
@@ -131,6 +133,7 @@ describe("investigation tools", () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createTracerTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "openai-key" }),
         generateTextFn: async (args) => {

@@ -30,6 +30,7 @@ describe("codereview tool", () => {
 
     const tool = createCodeReviewTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({
           OPENAI_API_KEY: "openai-key",

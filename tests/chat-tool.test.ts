@@ -55,6 +55,7 @@ describe("chat tool", () => {
     });
     const tool = createChatTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry,
     });
     const workingDirectory = await mkdtemp(join(process.cwd(), ".bab-test-chat-tool-"));
@@ -98,6 +99,7 @@ describe("chat tool", () => {
 
     const tool = createChatTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({
           OPENAI_API_KEY: "openai-key",
@@ -124,6 +126,7 @@ describe("chat tool", () => {
   test("rejects a non-existent working directory", async () => {
     const tool = createChatTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({
           OPENAI_API_KEY: "openai-key",
@@ -150,6 +153,7 @@ describe("chat tool", () => {
   test("rejects a non-absolute working directory", async () => {
     const tool = createChatTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({
           OPENAI_API_KEY: "openai-key",
