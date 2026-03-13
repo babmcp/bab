@@ -1,5 +1,5 @@
-import { copyFile, mkdtemp, realpath, rename, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { copyFile, mkdtemp, realpath, rm } from "node:fs/promises";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { VERSION } from "../version";
@@ -258,134 +258,125 @@ export async function downloadAndInstall(
   const contentLength = response.headers.get("content-length");
   const total = contentLength ? Number.parseInt(contentLength, 10) : null;
 
-  const targetDir = dirname(targetPath);
   const secureTmpDir = await mkdtemp(join(tmpdir(), "bab-update-"));
   const tmpPath = join(secureTmpDir, assetName);
-  const backupPath = join(targetDir, `${assetName}.bak`);
+  const backupPath = join(secureTmpDir, `${assetName}.bak`);
 
-  // Stream download with progress
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
+  try {
+    // Stream download with progress
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    renderProgress(stderr, version, received, total);
-  }
-
-  stderr.write("\n");
-
-  // Write temp file
-  const fullBuffer = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) {
-    fullBuffer.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  await Bun.write(tmpPath, fullBuffer);
-
-  // Verify checksum if available
-  if (checksumUrl) {
-    let checksumResponse: Response;
-    try {
-      checksumResponse = await fetchFn(checksumUrl);
-    } catch {
-      await rm(secureTmpDir, { recursive: true, force: true });
-      return err("Failed to download checksums file.");
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      renderProgress(stderr, version, received, total);
     }
 
-    if (!checksumResponse.ok) {
-      await rm(secureTmpDir, { recursive: true, force: true });
-      return err("Failed to download checksums file.");
+    stderr.write("\n");
+
+    // Write temp file
+    const fullBuffer = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) {
+      fullBuffer.set(chunk, offset);
+      offset += chunk.length;
     }
 
-    const checksumContent = await checksumResponse.text();
-    const checksumResult = await verifyChecksum(
-      tmpPath,
-      checksumContent,
-      assetName,
-    );
+    await Bun.write(tmpPath, fullBuffer);
 
-    if (!checksumResult.ok) {
-      await rm(secureTmpDir, { recursive: true, force: true });
-      return err(checksumResult.error);
+    // Verify checksum if available
+    if (checksumUrl) {
+      let checksumResponse: Response;
+      try {
+        checksumResponse = await fetchFn(checksumUrl);
+      } catch {
+        return err("Failed to download checksums file.");
+      }
+
+      if (!checksumResponse.ok) {
+        return err("Failed to download checksums file.");
+      }
+
+      const checksumContent = await checksumResponse.text();
+      const checksumResult = await verifyChecksum(
+        tmpPath,
+        checksumContent,
+        assetName,
+      );
+
+      if (!checksumResult.ok) {
+        return err(checksumResult.error);
+      }
+    } else {
+      return err(
+        "Checksum file not found in release — cannot verify binary integrity. Aborting update.",
+      );
     }
-  } else {
-    await rm(secureTmpDir, { recursive: true, force: true });
-    return err(
-      "Checksum file not found in release — cannot verify binary integrity. Aborting update.",
-    );
-  }
 
-  // Strip macOS quarantine attribute
-  if (process.platform === "darwin") {
-    Bun.spawnSync(["xattr", "-d", "com.apple.quarantine", tmpPath], {
-      stderr: "ignore",
-      stdout: "ignore",
+    // Strip macOS quarantine attribute
+    if (process.platform === "darwin") {
+      Bun.spawnSync(["xattr", "-d", "com.apple.quarantine", tmpPath], {
+        stderr: "ignore",
+        stdout: "ignore",
+      });
+    }
+
+    // Make executable
+    const chmodResult = Bun.spawnSync(["chmod", "+x", tmpPath], {
+      stderr: "pipe",
+      stdout: "pipe",
     });
-  }
 
-  // Make executable
-  const chmodResult = Bun.spawnSync(["chmod", "+x", tmpPath], {
-    stderr: "pipe",
-    stdout: "pipe",
-  });
-
-  if (chmodResult.exitCode !== 0) {
-    await rm(secureTmpDir, { recursive: true, force: true });
-    return err("Failed to set executable permission on downloaded binary.");
-  }
-
-  // Backup current binary for rollback
-  try {
-    await copyFile(targetPath, backupPath);
-  } catch {
-    // No existing binary to back up — fresh install
-  }
-
-  // Replace binary (copyFile handles cross-filesystem; rename may fail across mounts)
-  try {
-    await copyFile(tmpPath, targetPath);
-  } catch (error) {
-    await rm(secureTmpDir, { recursive: true, force: true });
-    await rm(backupPath, { force: true });
-    const msg =
-      error instanceof Error && error.message.includes("EACCES")
-        ? "Permission denied. Try: sudo bab selfupdate"
-        : `Failed to replace binary: ${error instanceof Error ? error.message : String(error)}`;
-    return err(msg);
-  }
-
-  await rm(secureTmpDir, { recursive: true, force: true });
-
-  // Verify new binary works
-  const verifyResult = Bun.spawnSync([targetPath, "--version"], {
-    stderr: "pipe",
-    stdout: "pipe",
-  });
-
-  if (verifyResult.exitCode !== 0) {
-    // Rollback: restore backup
-    try {
-      await rename(backupPath, targetPath);
-      return err(
-        "Updated binary failed verification. Rolled back to previous version.",
-      );
-    } catch {
-      return err(
-        "Updated binary failed verification and rollback failed. Manual reinstall may be needed.",
-      );
+    if (chmodResult.exitCode !== 0) {
+      return err("Failed to set executable permission on downloaded binary.");
     }
+
+    // Backup current binary for rollback
+    try {
+      await copyFile(targetPath, backupPath);
+    } catch {
+      // No existing binary to back up — fresh install
+    }
+
+    // Replace binary (copyFile handles cross-filesystem; rename may fail across mounts)
+    try {
+      await copyFile(tmpPath, targetPath);
+    } catch (error) {
+      const msg =
+        error instanceof Error && error.message.includes("EACCES")
+          ? "Permission denied. Try: sudo bab selfupdate"
+          : `Failed to replace binary: ${error instanceof Error ? error.message : String(error)}`;
+      return err(msg);
+    }
+
+    // Verify new binary works
+    const verifyResult = Bun.spawnSync([targetPath, "--version"], {
+      stderr: "pipe",
+      stdout: "pipe",
+    });
+
+    if (verifyResult.exitCode !== 0) {
+      // Rollback: restore backup
+      try {
+        await copyFile(backupPath, targetPath);
+        return err(
+          "Updated binary failed verification. Rolled back to previous version.",
+        );
+      } catch {
+        return err(
+          "Updated binary failed verification and rollback failed. Manual reinstall may be needed.",
+        );
+      }
+    }
+
+    return ok(true);
+  } finally {
+    await rm(secureTmpDir, { recursive: true, force: true });
   }
-
-  // Cleanup backup
-  await rm(backupPath, { force: true });
-
-  return ok(true);
 }
 
 /* ------------------------------------------------------------------ */
