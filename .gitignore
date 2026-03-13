@@ -1,0 +1,15 @@
+.DS_Store
+.mcp.json
+.agent-os/
+.claude/
+.serena/
+CLAUDE.md
+CLAUDE.local.md
+code/
+node_modules/
+dist/*
+!dist/.gitignore
+coverage/
+*.log
+.env
+.env.*

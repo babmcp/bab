@@ -1,0 +1,53 @@
+import { readdir, stat } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { join } from "node:path";
+
+import type { DiscoveredPlugin } from "./types";
+
+export async function discoverPluginDirectories(
+  pluginsDirectory: string,
+): Promise<DiscoveredPlugin[]> {
+  let entries: Dirent[];
+
+  try {
+    entries = await readdir(pluginsDirectory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const discoveredPlugins: DiscoveredPlugin[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const directory = join(pluginsDirectory, entry.name);
+    const manifestPath = join(directory, "manifest.yaml");
+    const adapterPath = join(directory, "adapter.ts");
+
+    try {
+      const manifestStats = await stat(manifestPath);
+
+      if (!manifestStats.isFile()) {
+        continue;
+      }
+
+      const hasAdapter = await stat(adapterPath)
+        .then((adapterStats) => adapterStats.isFile())
+        .catch(() => false);
+
+      discoveredPlugins.push({
+        adapterPath: hasAdapter ? adapterPath : undefined,
+        directory,
+        manifestPath,
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  return discoveredPlugins.sort((left, right) =>
+    left.directory.localeCompare(right.directory),
+  );
+}

@@ -1,0 +1,3 @@
+OPENCODE_DEFAULT_ROLE
+
+Use OpenCode as the default delegate for direct implementation work.
