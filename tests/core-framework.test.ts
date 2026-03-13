@@ -97,6 +97,7 @@ describe("simple tool framework", () => {
           .join("\n\n"),
       context: {
         conversationStore,
+        modelGateway: {} as never,
         providerRegistry,
       },
       description: "Test chat tool",
@@ -163,6 +164,7 @@ describe("workflow framework", () => {
       buildPrompt: ({ request }) => request.step,
       context: {
         conversationStore: new ConversationStore(),
+        modelGateway: {} as never,
         providerRegistry,
       },
       description: "Test workflow tool",
@@ -215,6 +217,7 @@ describe("workflow framework", () => {
       buildPrompt: ({ request }) => request.step,
       context: {
         conversationStore: new ConversationStore(),
+        modelGateway: {} as never,
         providerRegistry,
       },
       description: "Test workflow tool",
@@ -263,6 +266,7 @@ describe("workflow framework", () => {
       buildPrompt: ({ request }) => request.step,
       context: {
         conversationStore: new ConversationStore(),
+        modelGateway: {} as never,
         providerRegistry,
       },
       description: "Test workflow tool",
@@ -309,6 +313,7 @@ describe("workflow framework", () => {
       buildPrompt: ({ request }) => request.step,
       context: {
         conversationStore: new ConversationStore(),
+        modelGateway: {} as never,
         providerRegistry,
       },
       description: "Test workflow tool",
@@ -340,6 +345,7 @@ describe("workflow framework", () => {
       buildPrompt: ({ request }) => request.step,
       context: {
         conversationStore: new ConversationStore(),
+        modelGateway: {} as never,
         providerRegistry,
       },
       description: "Test planner workflow",

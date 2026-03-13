@@ -27,6 +27,7 @@ describe("transformation tools", () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createRefactorTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "openai-key" }),
         generateTextFn: async (args) => {
@@ -86,6 +87,7 @@ describe("transformation tools", () => {
 
     const tool = createTestgenTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "openai-key" }),
         generateTextFn: async (args) => {
@@ -134,6 +136,7 @@ describe("transformation tools", () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createDocgenTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "openai-key" }),
         generateTextFn: async (args) => {

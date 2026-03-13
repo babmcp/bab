@@ -22,6 +22,7 @@ describe("thinkdeep tool", () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createThinkDeepTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({
           OPENAI_API_KEY: "openai-key",

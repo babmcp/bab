@@ -24,6 +24,7 @@ describe("review tools", () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createSecauditTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "openai-key" }),
         generateTextFn: async (args) => {
@@ -72,6 +73,7 @@ describe("review tools", () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createPrecommitTool({
       conversationStore: new ConversationStore(),
+      modelGateway: {} as never,
       providerRegistry: new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "openai-key" }),
         generateTextFn: async (args) => {
