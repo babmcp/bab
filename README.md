@@ -16,12 +16,6 @@ That name fits the project because Bab acts as a gateway between MCP clients and
 - local project context
 - future plugin integrations
 
-## Status
-
-Current version: `0.1.0`
-
-Milestones 1 through 8 are complete. The server starts over stdio, ships the delegate/plugin system, exposes the full core and specialized toolset, and includes a plugin-author SDK plus packaging for CLI distribution.
-
 ## Features
 
 - MCP server over stdio using `@modelcontextprotocol/sdk`
@@ -30,44 +24,82 @@ Milestones 1 through 8 are complete. The server starts over stdio, ships the del
 - Provider registry backed by the Vercel AI SDK with per-provider thinking mode mapping
 - ModelGateway for unified model routing: SDK models by ID/alias or plugin models via `pluginId/modelName`
 - Multi-model consensus with parallel execution, per-model temperature and thinking mode
+- Slash commands via MCP prompts protocol (`/bab:chat`, `/bab:review`, `/bab:think`, etc.)
 - In-memory conversation storage with continuation support and a 20-turn limit
 - Full core and specialized workflow tool suite
-- CLI entrypoint with `serve`, `add`, `remove`, `list`, and `test-plugin` commands
+- CLI entrypoint with `serve`, `add`, `remove`, `list`, `selfupdate`, and `test-plugin` commands
 - Plugin SDK export surface via `@babmcp/bab/sdk`
-- Structured stderr logging
-- Bun-based test and build workflow
 
-## Requirements
+## Install
 
-- Bun `1.3.9` or newer
-- macOS or another Bun-supported environment
-- API keys only for the providers you want to enable
+### Homebrew (macOS / Linux)
+
+```bash
+brew install babmcp/tap/bab
+```
+
+### Install script (macOS / Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/babmcp/bab/main/install.sh | bash
+```
+
+Options:
+
+```bash
+# custom install directory
+curl -fsSL https://raw.githubusercontent.com/babmcp/bab/main/install.sh | bash -s -- --prefix /usr/local/bin
+
+# skip checksum verification (not recommended)
+curl -fsSL https://raw.githubusercontent.com/babmcp/bab/main/install.sh | bash -s -- --no-verify
+```
+
+### Binary download
+
+Grab the latest binary for your platform from the [releases page](https://github.com/babmcp/bab/releases):
+
+| Platform | Architecture | Asset |
+|----------|-------------|-------|
+| macOS | Apple Silicon | `bab-darwin-arm64` |
+| macOS | Intel | `bab-darwin-x64` |
+| Linux | x64 | `bab-linux-x64` |
+| Linux | ARM64 | `bab-linux-arm64` |
+
+```bash
+chmod +x bab-*
+mv bab-* /usr/local/bin/bab
+```
+
+### From source
+
+Requires [Bun](https://bun.sh) 1.3.9 or newer.
+
+```bash
+git clone https://github.com/babmcp/bab.git && cd bab
+bun install
+bun run build:binary   # compiled binary at dist/bab
+```
+
+### Self-update
+
+Once installed, update to the latest release:
+
+```bash
+bab selfupdate
+```
 
 ## Quick Start
 
-Install dependencies:
+Start the MCP server:
 
 ```bash
-bun install
+bab serve
 ```
 
-Run the server:
+Install first-party plugins:
 
 ```bash
-npx bab serve
-```
-
-For local development:
-
-```bash
-bun install
-bun run src/cli.ts serve
-```
-
-Build the distributable bundle:
-
-```bash
-bun run build
+bab add git@github.com:babmcp/plugins.git
 ```
 
 Run the test suite:

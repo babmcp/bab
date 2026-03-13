@@ -8,18 +8,36 @@ nav_order: 2
 
 ## Install
 
-From npm:
+### Homebrew (macOS / Linux)
 
 ```bash
-npx bab serve
+brew install babmcp/tap/bab
 ```
 
-For local development:
+### Install script (macOS / Linux)
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/babmcp/bab/main/install.sh | bash
+```
+
+### Binary download
+
+Grab the latest from the [releases page](https://github.com/babmcp/bab/releases), then `chmod +x` and move to a directory on your PATH.
+
+### From source
+
+Requires [Bun](https://bun.sh) 1.3.9 or newer.
+
+```bash
+git clone https://github.com/babmcp/bab.git && cd bab
 bun install
-bun run build
-node dist/cli.js serve
+bun run build:binary   # compiled binary at dist/bab
+```
+
+### Self-update
+
+```bash
+bab selfupdate
 ```
 
 ## Configuration
