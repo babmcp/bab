@@ -148,6 +148,12 @@ describe("source parser", () => {
       "Local plugin sources are not supported",
     );
   });
+
+  test("rejects insecure http:// sources", () => {
+    expect(() => parseSource("http://example.com/repo.git")).toThrow(
+      "Insecure http:// plugin sources are not allowed",
+    );
+  });
 });
 
 describe("plugin install command", () => {

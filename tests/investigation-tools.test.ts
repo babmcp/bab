@@ -73,7 +73,7 @@ describe("investigation tools", () => {
 
   test("analyze embeds files and reports analysis metadata", async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const analysisDirectory = await mkdtemp(join(tmpdir(), "bab-analyze-"));
+    const analysisDirectory = await mkdtemp(join(process.cwd(), ".bab-test-analyze-"));
     const analyzedFile = join(analysisDirectory, "module.ts");
 
     await writeFile(analyzedFile, "export const service = { enabled: true };\n");

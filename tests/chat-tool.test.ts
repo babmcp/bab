@@ -57,7 +57,7 @@ describe("chat tool", () => {
       conversationStore: new ConversationStore(),
       providerRegistry,
     });
-    const workingDirectory = await mkdtemp(join(tmpdir(), "bab-chat-tool-"));
+    const workingDirectory = await mkdtemp(join(process.cwd(), ".bab-test-chat-tool-"));
     const sourceFile = join(workingDirectory, "context.ts");
 
     await writeFile(sourceFile, "export const featureFlag = true;\n");
