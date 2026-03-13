@@ -1,23 +1,28 @@
-import { lstat, realpath } from "node:fs/promises";
 import { join } from "node:path";
 
+import { assertPathContainment } from "../delegate/loader";
 import { parseEnvFile } from "../config";
 
+/** Vars that can inject code into spawned processes. */
+const RUNTIME_INJECTION_VARS = [
+  "LD_PRELOAD",
+  "LD_LIBRARY_PATH",
+  "DYLD_INSERT_LIBRARIES",
+  "DYLD_LIBRARY_PATH",
+  "NODE_OPTIONS",
+  "NODE_PATH",
+  "BUN_OPTIONS",
+] as const;
+
 const FILE_ENV_DENYLIST = new Set([
+  ...RUNTIME_INJECTION_VARS,
   "HOME",
   "PWD",
   "PATH",
   "SHELL",
   "USER",
   "LOGNAME",
-  "NODE_OPTIONS",
-  "NODE_PATH",
   "NODE_EXTRA_CA_CERTS",
-  "BUN_OPTIONS",
-  "LD_LIBRARY_PATH",
-  "LD_PRELOAD",
-  "DYLD_LIBRARY_PATH",
-  "DYLD_INSERT_LIBRARIES",
   "GIT_SSH_COMMAND",
   "GIT_ASKPASS",
   "GIT_DIR",
@@ -38,15 +43,7 @@ const FILE_ENV_DENYLIST = new Set([
 const PROCESS_ENV_STRIP_PREFIXES = ["CLAUDE_", "CLAUDECODE"];
 
 /** Dangerous env vars stripped from process env before passing to delegates. */
-const DELEGATE_ENV_DENYLIST = new Set([
-  "LD_PRELOAD",
-  "LD_LIBRARY_PATH",
-  "DYLD_INSERT_LIBRARIES",
-  "DYLD_LIBRARY_PATH",
-  "NODE_OPTIONS",
-  "NODE_PATH",
-  "BUN_OPTIONS",
-]);
+const DELEGATE_ENV_DENYLIST = new Set(RUNTIME_INJECTION_VARS);
 
 function isFileEnvDenied(key: string): boolean {
   return FILE_ENV_DENYLIST.has(key) || key.startsWith("BAB_");
@@ -79,18 +76,7 @@ export async function readPluginEnv(
   const envPath = join(directory, "env");
 
   try {
-    // Reject symlinks to prevent reading files outside the plugin directory
-    const stats = await lstat(envPath);
-    if (stats.isSymbolicLink()) {
-      throw new Error(`Refusing to read symlinked env file: ${envPath}`);
-    }
-
-    const realEnvPath = await realpath(envPath);
-    const realDir = await realpath(directory);
-    if (!realEnvPath.startsWith(`${realDir}/`)) {
-      throw new Error(`Plugin env file escapes plugin directory: ${envPath}`);
-    }
-
+    const realEnvPath = await assertPathContainment(envPath, directory, "env");
     const contents = await Bun.file(realEnvPath).text();
     return parseEnvFile(contents, { source: envPath });
   } catch (error) {
