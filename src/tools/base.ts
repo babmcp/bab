@@ -12,6 +12,7 @@ import {
 } from "../memory/conversations";
 import type { GenerateTextResult, ProviderRegistry } from "../providers/registry";
 import type { ModelInfo, Result, ToolError, ToolOutput } from "../types";
+import { logger } from "../utils/logger";
 import { estimateTokenCount } from "../utils/tokens";
 
 const MAX_EMBEDDED_FILE_TOKENS = 50_000;
@@ -62,7 +63,7 @@ export const ConfidenceSchema = z
   .optional();
 export const TemperatureSchema = z.number().min(0).max(1).optional();
 export const ContinuationIdSchema = z.string().min(1).optional();
-export const AbsoluteFilePathsSchema = z.array(z.string().min(1)).optional();
+export const FilePathsSchema = z.array(z.string().min(1)).optional();
 export const ImagesSchema = z.array(z.string().min(1)).optional();
 export const IssuesFoundSchema = z
   .array(
@@ -173,6 +174,10 @@ export function selectModel(
       return exactModel;
     }
 
+    logger.warn("Requested model not available, auto-selecting", {
+      requested: requestedModel,
+    });
+
     // Fall through to auto-select the best available model
   }
 
@@ -187,7 +192,7 @@ export function selectModel(
   return availableModels[0];
 }
 
-export async function embedAbsoluteFiles(
+export async function embedFiles(
   paths: string[] | undefined,
   modelInfo: ModelInfo,
 ): Promise<FileEmbeddingResult> {

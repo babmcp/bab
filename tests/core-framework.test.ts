@@ -9,7 +9,7 @@ import type { BabConfig } from "../src/config";
 import { ConversationStore } from "../src/memory/conversations";
 import { ProviderRegistry } from "../src/providers/registry";
 import {
-  embedAbsoluteFiles,
+  embedFiles,
   prepareConversation,
   remainingConversationTurns,
   selectModel,
@@ -411,7 +411,7 @@ describe("selectModel", () => {
   });
 });
 
-describe("embedAbsoluteFiles", () => {
+describe("embedFiles", () => {
   test("throws for non-existent files in allowed path", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
@@ -420,7 +420,7 @@ describe("embedAbsoluteFiles", () => {
     const nonExistent = join(process.cwd(), "nonexistent-bab-test-file.ts");
 
     await expect(
-      embedAbsoluteFiles([nonExistent], model),
+      embedFiles([nonExistent], model),
     ).rejects.toThrow("Unable to read file path");
   });
 
@@ -432,7 +432,7 @@ describe("embedAbsoluteFiles", () => {
 
     // relative path to a non-existent file — should resolve to cwd and then fail on stat
     await expect(
-      embedAbsoluteFiles(["relative/nonexistent.ts"], model),
+      embedFiles(["relative/nonexistent.ts"], model),
     ).rejects.toThrow("Unable to read file path");
   });
 
@@ -441,7 +441,7 @@ describe("embedAbsoluteFiles", () => {
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
     const model = selectModel(registry);
-    const result = await embedAbsoluteFiles([process.cwd()], model);
+    const result = await embedFiles([process.cwd()], model);
 
     expect(result.embedded_files).toHaveLength(0);
     expect(result.skipped_files).toHaveLength(1);
@@ -459,7 +459,7 @@ describe("embedAbsoluteFiles", () => {
         config: createConfig({ OPENAI_API_KEY: "key" }),
       });
       const model = selectModel(registry);
-      const result = await embedAbsoluteFiles(
+      const result = await embedFiles(
         [filePath, filePath, filePath],
         model,
       );
@@ -476,7 +476,7 @@ describe("embedAbsoluteFiles", () => {
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
     const model = selectModel(registry);
-    const result = await embedAbsoluteFiles(undefined, model);
+    const result = await embedFiles(undefined, model);
 
     expect(result.embedded_files).toHaveLength(0);
     expect(result.total_tokens).toBe(0);
@@ -492,7 +492,7 @@ describe("embedAbsoluteFiles", () => {
 
     try {
       await writeFile(blockedFile, "secret data\n");
-      const result = await embedAbsoluteFiles([blockedFile], model);
+      const result = await embedFiles([blockedFile], model);
 
       expect(result.embedded_files).toHaveLength(0);
       expect(result.skipped_files).toHaveLength(1);
