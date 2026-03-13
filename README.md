@@ -169,7 +169,7 @@ Optional `adapter.ts` files can implement runtime behavior for CLI parsing, vali
 
 ## Docs
 
-Full documentation is available at **[babmcp.github.io/bab](https://babmcp.github.io/bab/)** or in [`docs/`](./docs/README.md):
+Full documentation is available at **[babmcp.github.io/bab](https://babmcp.github.io/bab/)** or in [`docs/`](./docs/index.md):
 
 - [Getting Started](https://babmcp.github.io/bab/getting-started/)
 - [Provider Setup](https://babmcp.github.io/bab/provider-setup/)
