@@ -4,6 +4,11 @@ import {
   type CallToolRequest,
   CallToolRequestSchema,
   type CallToolResult,
+  type GetPromptRequest,
+  GetPromptRequestSchema,
+  type GetPromptResult,
+  type ListPromptsResult,
+  ListPromptsRequestSchema,
   ListToolsRequestSchema,
   type ListToolsResult,
   type Tool as McpTool,
@@ -34,6 +39,7 @@ import { createTestgenTool } from "./tools/testgen";
 import { createThinkDeepTool } from "./tools/thinkdeep";
 import { createTracerTool } from "./tools/tracer";
 import { createVersionTool } from "./tools/version";
+import { getPrompt, listPrompts } from "./prompts/slash-commands";
 import {
   type Result,
   type ToolError,
@@ -130,6 +136,7 @@ export class BabServer {
   constructor() {
     this.protocolServer = new Server(SERVER_INFO, {
       capabilities: {
+        prompts: {},
         tools: {},
       },
     });
@@ -156,6 +163,14 @@ export class BabServer {
       CallToolRequestSchema,
       async (request) => this.handleCallToolRequest(request),
     );
+    this.protocolServer.setRequestHandler(
+      ListPromptsRequestSchema,
+      async () => this.handleListPromptsRequest(),
+    );
+    this.protocolServer.setRequestHandler(
+      GetPromptRequestSchema,
+      async (request) => this.handleGetPromptRequest(request),
+    );
   }
 
   registerTool(tool: RegisteredTool): void {
@@ -164,6 +179,18 @@ export class BabServer {
     }
 
     this.toolRegistry.set(tool.name, tool);
+  }
+
+  async handleListPromptsRequest(): Promise<ListPromptsResult> {
+    return { prompts: listPrompts() };
+  }
+
+  async handleGetPromptRequest(
+    request: GetPromptRequest,
+  ): Promise<GetPromptResult> {
+    const { name, arguments: args } = request.params;
+    logger.info("Prompt requested", { prompt: name });
+    return getPrompt(name, args);
   }
 
   async handleListToolsRequest(): Promise<ListToolsResult> {
