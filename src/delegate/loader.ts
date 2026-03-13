@@ -80,7 +80,12 @@ async function loadAdapterModule(
 export async function loadPlugin(
   discoveredPlugin: DiscoveredPlugin,
 ): Promise<LoadedPlugin & { env: Record<string, string> }> {
-  const manifestSource = await Bun.file(discoveredPlugin.manifestPath).text();
+  const resolvedManifestPath = await assertPathContainment(
+    discoveredPlugin.manifestPath,
+    discoveredPlugin.directory,
+    "manifest",
+  );
+  const manifestSource = await Bun.file(resolvedManifestPath).text();
   const parsedManifest = YAML.parse(manifestSource, { maxAliasCount: 10 });
   const manifest = PluginManifestSchema.parse(parsedManifest);
   const env = await readPluginEnv(discoveredPlugin.directory);

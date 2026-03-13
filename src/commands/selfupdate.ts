@@ -1,5 +1,6 @@
-import { copyFile, realpath, rename, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, realpath, rename, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
 
 import { VERSION } from "../version";
 
@@ -258,7 +259,8 @@ export async function downloadAndInstall(
   const total = contentLength ? Number.parseInt(contentLength, 10) : null;
 
   const targetDir = dirname(targetPath);
-  const tmpPath = join(targetDir, `${assetName}.tmp`);
+  const secureTmpDir = await mkdtemp(join(tmpdir(), "bab-update-"));
+  const tmpPath = join(secureTmpDir, assetName);
   const backupPath = join(targetDir, `${assetName}.bak`);
 
   // Stream download with progress
@@ -292,12 +294,12 @@ export async function downloadAndInstall(
     try {
       checksumResponse = await fetchFn(checksumUrl);
     } catch {
-      await rm(tmpPath, { force: true });
+      await rm(secureTmpDir, { recursive: true, force: true });
       return err("Failed to download checksums file.");
     }
 
     if (!checksumResponse.ok) {
-      await rm(tmpPath, { force: true });
+      await rm(secureTmpDir, { recursive: true, force: true });
       return err("Failed to download checksums file.");
     }
 
@@ -309,11 +311,11 @@ export async function downloadAndInstall(
     );
 
     if (!checksumResult.ok) {
-      await rm(tmpPath, { force: true });
+      await rm(secureTmpDir, { recursive: true, force: true });
       return err(checksumResult.error);
     }
   } else {
-    await rm(tmpPath, { force: true });
+    await rm(secureTmpDir, { recursive: true, force: true });
     return err(
       "Checksum file not found in release — cannot verify binary integrity. Aborting update.",
     );
@@ -334,7 +336,7 @@ export async function downloadAndInstall(
   });
 
   if (chmodResult.exitCode !== 0) {
-    await rm(tmpPath, { force: true });
+    await rm(secureTmpDir, { recursive: true, force: true });
     return err("Failed to set executable permission on downloaded binary.");
   }
 
@@ -345,11 +347,11 @@ export async function downloadAndInstall(
     // No existing binary to back up — fresh install
   }
 
-  // Atomic replace
+  // Replace binary (copyFile handles cross-filesystem; rename may fail across mounts)
   try {
-    await rename(tmpPath, targetPath);
+    await copyFile(tmpPath, targetPath);
   } catch (error) {
-    await rm(tmpPath, { force: true });
+    await rm(secureTmpDir, { recursive: true, force: true });
     await rm(backupPath, { force: true });
     const msg =
       error instanceof Error && error.message.includes("EACCES")
@@ -357,6 +359,8 @@ export async function downloadAndInstall(
         : `Failed to replace binary: ${error instanceof Error ? error.message : String(error)}`;
     return err(msg);
   }
+
+  await rm(secureTmpDir, { recursive: true, force: true });
 
   // Verify new binary works
   const verifyResult = Bun.spawnSync([targetPath, "--version"], {
