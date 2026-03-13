@@ -372,24 +372,22 @@ describe("workflow framework", () => {
 });
 
 describe("selectModel", () => {
-  test("throws when requested model provider is not configured", () => {
+  test("falls back to best available when requested model provider is not configured", () => {
     const registry = new ProviderRegistry({
-      config: createConfig(),
+      config: createConfig({ GOOGLE_API_KEY: "key" }),
     });
 
-    expect(() => selectModel(registry, "gpt-5.2")).toThrow(
-      "Provider not configured: openai",
-    );
+    const model = selectModel(registry, "gpt-5.2");
+    expect(model.provider).toBe("google");
   });
 
-  test("throws when requested model does not exist", () => {
+  test("falls back to best available when requested model does not exist", () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
 
-    expect(() => selectModel(registry, "nonexistent-model")).toThrow(
-      "Unknown model: nonexistent-model",
-    );
+    const model = selectModel(registry, "nonexistent-model");
+    expect(model.provider).toBe("openai");
   });
 
   test("throws when no providers are configured", () => {
@@ -426,15 +424,16 @@ describe("embedAbsoluteFiles", () => {
     ).rejects.toThrow("Unable to read file path");
   });
 
-  test("throws for non-absolute paths", async () => {
+  test("resolves relative paths against cwd", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
     const model = selectModel(registry);
 
+    // relative path to a non-existent file — should resolve to cwd and then fail on stat
     await expect(
-      embedAbsoluteFiles(["relative/path.ts"], model),
-    ).rejects.toThrow("File paths must be absolute");
+      embedAbsoluteFiles(["relative/nonexistent.ts"], model),
+    ).rejects.toThrow("Unable to read file path");
   });
 
   test("skips directories with not_a_file reason", async () => {
