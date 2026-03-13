@@ -1,4 +1,3 @@
-import { realpath } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import YAML from "yaml";
@@ -7,6 +6,7 @@ import { PluginManifestSchema } from "../types";
 import type { PluginManifest } from "../types";
 import { readPluginEnv } from "../utils/env";
 import { logger } from "../utils/logger";
+import { assertPathContainment } from "../utils/path";
 import { wrapSimpleAdapter } from "./adapter-wrapper";
 import type {
   DelegatePluginAdapter,
@@ -46,22 +46,6 @@ function resolveAdapter(
   return undefined;
 }
 
-export async function assertPathContainment(
-  filePath: string,
-  containerDirectory: string,
-  label = "file",
-): Promise<string> {
-  const realContainer = await realpath(containerDirectory);
-  const realFile = await realpath(filePath);
-
-  if (realFile !== realContainer && !realFile.startsWith(`${realContainer}/`)) {
-    throw new Error(
-      `Refusing to load ${label} outside plugin directory: ${filePath}`,
-    );
-  }
-
-  return realFile;
-}
 
 async function loadAdapterModule(
   adapterPath: string,

@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import { assertPathContainment } from "../delegate/loader";
+import { assertPathContainment } from "../utils/path";
 import { parseEnvFile } from "../config";
 
 /** Vars that can inject code into spawned processes. */

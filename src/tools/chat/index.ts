@@ -5,11 +5,17 @@ import { z } from "zod/v4";
 
 import { CHAT_SYSTEM_PROMPT } from "../../prompts/chat";
 import type { ToolContext } from "../base";
-import { AbsoluteFilePathsSchema, ContinuationIdSchema, ImagesSchema, TemperatureSchema, ThinkingModeSchema } from "../base";
+import {
+  ContinuationIdSchema,
+  FilePathsSchema,
+  ImagesSchema,
+  TemperatureSchema,
+  ThinkingModeSchema,
+} from "../base";
 import { createSimpleTool } from "../simple";
 
 const ChatInputSchema = z.object({
-  absolute_file_paths: AbsoluteFilePathsSchema,
+  absolute_file_paths: FilePathsSchema,
   continuation_id: ContinuationIdSchema,
   images: ImagesSchema,
   model: z.string().min(1).optional(),

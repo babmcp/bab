@@ -8,7 +8,7 @@ import {
   createJsonToolOutput,
   createSuccessToolResult,
   createToolError,
-  embedAbsoluteFiles,
+  embedFiles,
   prepareConversation,
   remainingConversationTurns,
   recordConversationTurn,
@@ -125,7 +125,7 @@ export function createConsensusTool(context: ToolContext): RegisteredTool {
           context.conversationStore,
           request.continuation_id,
         );
-        const fileContext = await embedAbsoluteFiles(
+        const fileContext = await embedFiles(
           request.relevant_files,
           synthesisModel,
         );

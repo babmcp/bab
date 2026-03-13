@@ -7,7 +7,7 @@ import {
   createJsonToolOutput,
   createSuccessToolResult,
   createToolError,
-  embedAbsoluteFiles,
+  embedFiles,
   prepareConversation,
   remainingConversationTurns,
   recordConversationTurn,
@@ -79,7 +79,7 @@ export function createSimpleTool<
           context.conversationStore,
           request.continuation_id,
         );
-        const fileContext = await embedAbsoluteFiles(
+        const fileContext = await embedFiles(
           request.absolute_file_paths,
           selectedModel,
         );

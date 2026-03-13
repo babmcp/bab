@@ -7,7 +7,7 @@ import {
   createJsonToolOutput,
   createSuccessToolResult,
   createToolError,
-  embedAbsoluteFiles,
+  embedFiles,
   prepareConversation,
   remainingConversationTurns,
   recordConversationTurn,
@@ -96,7 +96,7 @@ export class WorkflowRunner<
         this.config.context.conversationStore,
         parsedRequest.continuation_id,
       );
-      const fileContext = await embedAbsoluteFiles(
+      const fileContext = await embedFiles(
         parsedRequest.relevant_files,
         selectedModel,
       );
