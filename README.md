@@ -108,6 +108,62 @@ Run the test suite:
 bun test
 ```
 
+## Connect Bab To MCP Clients
+
+Use the installed `bab` binary as a local stdio MCP server. Replace `/absolute/path/to/bab` with the output of:
+
+```bash
+which bab
+```
+
+### Codex
+
+Add this to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.bab]
+command = "/absolute/path/to/bab"
+args = ["serve"]
+startup_timeout_sec = 300.0
+tool_timeout_sec = 1200.0
+```
+
+Then restart Codex or reload MCP servers.
+
+### Claude Code
+
+Add Bab as a user-scoped stdio MCP server:
+
+```bash
+claude mcp add-json --scope user bab \
+  '{"type":"stdio","command":"/absolute/path/to/bab","args":["serve"]}'
+```
+
+Verify with:
+
+```bash
+claude mcp get bab
+```
+
+### GitHub Copilot CLI
+
+Add this to `~/.copilot/mcp-config.json`:
+
+```json
+{
+  "mcpServers": {
+    "bab": {
+      "type": "local",
+      "command": "/absolute/path/to/bab",
+      "args": ["serve"],
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+You can also add it interactively from Copilot CLI with `/mcp add`.
+
 ## Configuration
 
 Bab creates and uses `~/.config/bab/` on first run:
