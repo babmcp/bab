@@ -11,6 +11,7 @@ nav_order: 1
 | Document | Description |
 |----------|-------------|
 | [Getting Started](./getting-started.md) | Installation, configuration, common commands |
+| [Slash Commands](./slash-commands.md) | `/bab:chat`, `/bab:review`, and other slash commands |
 | [Provider Setup](./provider-setup.md) | API keys, AI providers, environment variables, model selection |
 | [Plugin Authoring](./plugin-authoring.md) | Manifest, directory layout, SDK, plugin installation |
 | [Adapter Tutorial](./adapter-tutorial.md) | Plugin interface, parsing patterns, extending tools |
