@@ -170,15 +170,11 @@ export function selectModel(
   if (requestedModel) {
     const exactModel = providerRegistry.getModelInfo(requestedModel);
 
-    if (!exactModel) {
-      throw new Error(`Unknown model: ${requestedModel}`);
+    if (exactModel && providerRegistry.isProviderConfigured(exactModel.provider)) {
+      return exactModel;
     }
 
-    if (!providerRegistry.isProviderConfigured(exactModel.provider)) {
-      throw new Error(`Provider not configured: ${exactModel.provider}`);
-    }
-
-    return exactModel;
+    // Fall through to auto-select the best available model
   }
 
   const availableModels = providerRegistry
@@ -206,10 +202,8 @@ export async function embedAbsoluteFiles(
   );
   let totalTokens = 0;
 
-  for (const filePath of uniquePaths) {
-    if (!isAbsolute(filePath)) {
-      throw new Error(`File paths must be absolute: ${filePath}`);
-    }
+  for (const rawPath of uniquePaths) {
+    const filePath = isAbsolute(rawPath) ? rawPath : resolve(process.cwd(), rawPath);
 
     let stats;
     let resolvedPath: string;
