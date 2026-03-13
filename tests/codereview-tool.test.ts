@@ -23,7 +23,7 @@ function createConfig(env: Record<string, string> = {}): BabConfig {
 describe("codereview tool", () => {
   test("embeds relevant files and runs expert validation on completion", async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const reviewDirectory = await mkdtemp(join(tmpdir(), "bab-codereview-"));
+    const reviewDirectory = await mkdtemp(join(process.cwd(), ".bab-test-codereview-"));
     const reviewedFile = join(reviewDirectory, "reviewed.ts");
 
     await writeFile(reviewedFile, "export function sum(a: number, b: number) { return a + b; }\n");

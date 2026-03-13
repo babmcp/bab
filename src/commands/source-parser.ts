@@ -109,7 +109,13 @@ export function parseSource(input: string): ParsedSource {
     throw new CommandError("Local plugin sources are not supported");
   }
 
-  if (!["http:", "https:", "ssh:"].includes(parsedUrl.protocol)) {
+  if (parsedUrl.protocol === "http:") {
+    throw new CommandError(
+      "Insecure http:// plugin sources are not allowed. Use https:// or ssh:// instead.",
+    );
+  }
+
+  if (!["https:", "ssh:"].includes(parsedUrl.protocol)) {
     throw new CommandError(
       `Unsupported plugin source protocol: ${parsedUrl.protocol}`,
     );

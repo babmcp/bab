@@ -79,7 +79,7 @@ describe("transformation tools", () => {
 
   test("testgen produces a file-backed test plan with expert follow-up", async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const tempDirectory = await mkdtemp(join(tmpdir(), "bab-testgen-"));
+    const tempDirectory = await mkdtemp(join(process.cwd(), ".bab-test-testgen-"));
     const sourceFile = join(tempDirectory, "service.ts");
 
     await writeFile(sourceFile, "export async function loadUser(id: string) { return { id }; }\n");

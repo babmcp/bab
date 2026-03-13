@@ -1,5 +1,7 @@
-import { stat } from "node:fs/promises";
-import { isAbsolute } from "node:path";
+import { realpath, stat } from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { isAbsolute, resolve } from "node:path";
 
 import { z } from "zod/v4";
 
@@ -14,6 +16,36 @@ import { estimateTokenCount } from "../utils/tokens";
 
 const MAX_EMBEDDED_FILE_TOKENS = 50_000;
 const MAX_HISTORY_TURNS = 8;
+
+const ALLOWED_HOME_DIRS = [
+  ".config/bab",
+  ".claude",
+  ".codex",
+  ".copilot",
+  ".opencode",
+];
+
+function isAllowedPath(realPath: string): boolean {
+  const cwd = realpathSync(process.cwd());
+  if (realPath === cwd || realPath.startsWith(`${cwd}/`)) {
+    return true;
+  }
+
+  const tmp = resolve(tmpdir());
+  if (realPath === tmp || realPath.startsWith(`${tmp}/`)) {
+    return true;
+  }
+
+  const home = homedir();
+  for (const dir of ALLOWED_HOME_DIRS) {
+    const allowed = resolve(home, dir);
+    if (realPath === allowed || realPath.startsWith(`${allowed}/`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 export const ThinkingModeSchema = z
   .enum(["minimal", "low", "medium", "high", "max"])
@@ -180,13 +212,23 @@ export async function embedAbsoluteFiles(
     }
 
     let stats;
+    let resolvedPath: string;
 
     try {
-      stats = await stat(filePath);
+      resolvedPath = await realpath(filePath);
+      stats = await stat(resolvedPath);
     } catch (error) {
       throw new Error(
         `Unable to read file path: ${filePath} (${error instanceof Error ? error.message : String(error)})`,
       );
+    }
+
+    if (!isAllowedPath(resolvedPath)) {
+      skippedFiles.push({
+        path: filePath,
+        reason: "path_not_allowed",
+      });
+      continue;
     }
 
     if (!stats.isFile()) {

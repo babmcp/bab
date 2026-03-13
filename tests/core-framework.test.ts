@@ -108,11 +108,12 @@ describe("simple tool framework", () => {
       name: "chat",
       systemPrompt: "system",
     });
-    const tempDirectory = await mkdtemp(join(tmpdir(), "bab-framework-"));
+    const tempDirectory = await mkdtemp(join(process.cwd(), ".bab-test-framework-"));
     const sourceFile = join(tempDirectory, "example.ts");
 
     await writeFile(sourceFile, "export const answer = 42;\n");
 
+    try {
     const firstResult = await tool.execute({
       absolute_file_paths: [sourceFile],
       prompt: "Inspect the file",
@@ -145,6 +146,10 @@ describe("simple tool framework", () => {
 
     expect(calls).toHaveLength(2);
     expect(String(calls[1]?.prompt)).toContain("ASSISTANT\nfirst-response");
+    } finally {
+      const { rm } = await import("node:fs/promises");
+      await rm(tempDirectory, { force: true, recursive: true });
+    }
   });
 });
 
@@ -409,14 +414,15 @@ describe("selectModel", () => {
 });
 
 describe("embedAbsoluteFiles", () => {
-  test("throws for non-existent files", async () => {
+  test("throws for non-existent files in allowed path", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
     const model = selectModel(registry);
+    const nonExistent = join(process.cwd(), "nonexistent-bab-test-file.ts");
 
     await expect(
-      embedAbsoluteFiles(["/tmp/nonexistent-bab-test-file.ts"], model),
+      embedAbsoluteFiles([nonExistent], model),
     ).rejects.toThrow("Unable to read file path");
   });
 
@@ -436,7 +442,7 @@ describe("embedAbsoluteFiles", () => {
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
     const model = selectModel(registry);
-    const result = await embedAbsoluteFiles([tmpdir()], model);
+    const result = await embedAbsoluteFiles([process.cwd()], model);
 
     expect(result.embedded_files).toHaveLength(0);
     expect(result.skipped_files).toHaveLength(1);
@@ -444,21 +450,26 @@ describe("embedAbsoluteFiles", () => {
   });
 
   test("deduplicates paths", async () => {
-    const tempDirectory = await mkdtemp(join(tmpdir(), "bab-embed-dedup-"));
+    const tempDirectory = await mkdtemp(join(process.cwd(), ".bab-test-dedup-"));
     const filePath = join(tempDirectory, "dup.ts");
 
-    await writeFile(filePath, "export const x = 1;\n");
+    try {
+      await writeFile(filePath, "export const x = 1;\n");
 
-    const registry = new ProviderRegistry({
-      config: createConfig({ OPENAI_API_KEY: "key" }),
-    });
-    const model = selectModel(registry);
-    const result = await embedAbsoluteFiles(
-      [filePath, filePath, filePath],
-      model,
-    );
+      const registry = new ProviderRegistry({
+        config: createConfig({ OPENAI_API_KEY: "key" }),
+      });
+      const model = selectModel(registry);
+      const result = await embedAbsoluteFiles(
+        [filePath, filePath, filePath],
+        model,
+      );
 
-    expect(result.embedded_files).toHaveLength(1);
+      expect(result.embedded_files).toHaveLength(1);
+    } finally {
+      const { rm } = await import("node:fs/promises");
+      await rm(tempDirectory, { force: true, recursive: true });
+    }
   });
 
   test("returns empty results for undefined paths", async () => {
@@ -470,6 +481,27 @@ describe("embedAbsoluteFiles", () => {
 
     expect(result.embedded_files).toHaveLength(0);
     expect(result.total_tokens).toBe(0);
+  });
+
+  test("blocks paths outside cwd and allowed dirs", async () => {
+    const registry = new ProviderRegistry({
+      config: createConfig({ OPENAI_API_KEY: "key" }),
+    });
+    const model = selectModel(registry);
+    const home = require("node:os").homedir();
+    const blockedFile = join(home, "bab-test-blocked.txt");
+
+    try {
+      await writeFile(blockedFile, "secret data\n");
+      const result = await embedAbsoluteFiles([blockedFile], model);
+
+      expect(result.embedded_files).toHaveLength(0);
+      expect(result.skipped_files).toHaveLength(1);
+      expect(result.skipped_files[0]?.reason).toBe("path_not_allowed");
+    } finally {
+      const { rm } = await import("node:fs/promises");
+      await rm(blockedFile, { force: true });
+    }
   });
 });
 
