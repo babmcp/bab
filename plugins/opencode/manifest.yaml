@@ -1,0 +1,29 @@
+id: opencode
+name: OpenCode CLI
+version: 0.1.0
+command: opencode
+roles:
+  - name: default
+    description: Default OpenCode delegate role.
+    inherits: default
+    prompt_file: prompts/default.txt
+  - name: planner
+    description: Planning-focused OpenCode role.
+    inherits: planner
+    prompt_file: prompts/planner.txt
+  - name: codereviewer
+    description: Review-focused OpenCode role.
+    inherits: codereviewer
+    prompt_file: prompts/codereviewer.txt
+  - name: researcher
+    description: Exploration-heavy OpenCode role for deep research workflows.
+    inherits: planner
+    prompt_file: prompts/researcher.txt
+    args:
+      variant: high
+capabilities:
+  supports_cancellation: true
+  supports_images: false
+  supports_streaming: false
+  supports_working_directory: true
+  output_format: jsonl

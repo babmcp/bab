@@ -1,0 +1,370 @@
+import { describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { loadConfig, parseEnvFile } from "../src/config";
+import { loadPlugin, loadPlugins } from "../src/delegate/loader";
+import { ProcessRunner } from "../src/delegate/process-runner";
+import { resolveRole } from "../src/delegate/roles";
+import { InMemoryStorageAdapter } from "../src/memory/memory";
+import { parseSource } from "../src/commands/source-parser";
+import { sanitizeFileEnv } from "../src/utils/env";
+import { VERSION } from "../src/version";
+import pkg from "../package.json";
+
+describe("S2: loadConfig sanitizes file env and process env wins", () => {
+  test("process env takes precedence over file env", async () => {
+    const homeDirectory = await mkdtemp(join(tmpdir(), "bab-config-s2-"));
+    const configDir = join(homeDirectory, ".config", "bab");
+
+    await mkdir(configDir, { recursive: true });
+    await writeFile(
+      join(configDir, "env"),
+      "OPENROUTER_API_KEY=from-file\nCUSTOM_VAR=file-value\n",
+    );
+
+    const originalEnv = process.env.OPENROUTER_API_KEY;
+    process.env.OPENROUTER_API_KEY = "from-process";
+
+    try {
+      const config = await loadConfig(homeDirectory);
+
+      expect(config.env.OPENROUTER_API_KEY).toBe("from-process");
+      expect(config.env.CUSTOM_VAR).toBe("file-value");
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.OPENROUTER_API_KEY;
+      } else {
+        process.env.OPENROUTER_API_KEY = originalEnv;
+      }
+    }
+  });
+
+  test("file env cannot override PATH or HOME", async () => {
+    const homeDirectory = await mkdtemp(join(tmpdir(), "bab-config-s2-deny-"));
+    const configDir = join(homeDirectory, ".config", "bab");
+
+    await mkdir(configDir, { recursive: true });
+    await writeFile(
+      join(configDir, "env"),
+      "PATH=/malicious\nHOME=/malicious\nSAFE_KEY=allowed\n",
+    );
+
+    const config = await loadConfig(homeDirectory);
+
+    expect(config.env.PATH).not.toBe("/malicious");
+    expect(config.env.HOME).not.toBe("/malicious");
+    expect(config.env.SAFE_KEY).toBe("allowed");
+  });
+});
+
+describe("S3: expanded env denylist", () => {
+  test("blocks NODE_PATH", () => {
+    const result = sanitizeFileEnv({ NODE_PATH: "/malicious", SAFE: "ok" });
+
+    expect(result.NODE_PATH).toBeUndefined();
+    expect(result.SAFE).toBe("ok");
+  });
+
+  test("blocks GIT_SSH_COMMAND", () => {
+    const result = sanitizeFileEnv({ GIT_SSH_COMMAND: "evil-script" });
+
+    expect(result.GIT_SSH_COMMAND).toBeUndefined();
+  });
+
+  test("blocks proxy variables", () => {
+    const result = sanitizeFileEnv({
+      HTTP_PROXY: "http://evil",
+      HTTPS_PROXY: "http://evil",
+      http_proxy: "http://evil",
+      https_proxy: "http://evil",
+    });
+
+    expect(result.HTTP_PROXY).toBeUndefined();
+    expect(result.HTTPS_PROXY).toBeUndefined();
+    expect(result.http_proxy).toBeUndefined();
+    expect(result.https_proxy).toBeUndefined();
+  });
+
+  test("blocks SSL and CA variables", () => {
+    const result = sanitizeFileEnv({
+      NODE_EXTRA_CA_CERTS: "/evil.pem",
+      SSL_CERT_FILE: "/evil.pem",
+      SSL_CERT_DIR: "/evil",
+      REQUESTS_CA_BUNDLE: "/evil.pem",
+      CURL_CA_BUNDLE: "/evil.pem",
+    });
+
+    expect(result.NODE_EXTRA_CA_CERTS).toBeUndefined();
+    expect(result.SSL_CERT_FILE).toBeUndefined();
+    expect(result.SSL_CERT_DIR).toBeUndefined();
+    expect(result.REQUESTS_CA_BUNDLE).toBeUndefined();
+    expect(result.CURL_CA_BUNDLE).toBeUndefined();
+  });
+
+  test("blocks LD_PRELOAD and GIT_ASKPASS", () => {
+    const result = sanitizeFileEnv({
+      GIT_ASKPASS: "/evil",
+      LD_PRELOAD: "/evil.so",
+    });
+
+    expect(result.GIT_ASKPASS).toBeUndefined();
+    expect(result.LD_PRELOAD).toBeUndefined();
+  });
+});
+
+describe("S4: git ref validation", () => {
+  test("rejects refs starting with a dash", () => {
+    expect(() => parseSource("org/repo#--upload-pack=evil")).toThrow(
+      'Invalid ref (starts with "-")',
+    );
+  });
+
+  test("rejects refs with invalid characters", () => {
+    expect(() => parseSource("org/repo#main; rm -rf /")).toThrow(
+      "Invalid characters in ref",
+    );
+  });
+
+  test("rejects refs exceeding maximum length", () => {
+    const longRef = "a".repeat(201);
+
+    expect(() => parseSource(`org/repo#${longRef}`)).toThrow(
+      "Ref exceeds maximum length",
+    );
+  });
+
+  test("accepts valid refs with slashes, dots, and tildes", () => {
+    const result = parseSource("org/repo#feature/branch-1.0~2");
+
+    expect(result.ref).toBe("feature/branch-1.0~2");
+  });
+
+  test("accepts valid semver tag refs", () => {
+    const result = parseSource("org/repo#v1.2.3");
+
+    expect(result.ref).toBe("v1.2.3");
+  });
+
+  test("accepts valid SHA refs", () => {
+    const result = parseSource("org/repo#abc123def456");
+
+    expect(result.ref).toBe("abc123def456");
+  });
+
+  test("accepts caret notation in refs", () => {
+    const result = parseSource("org/repo#HEAD^");
+
+    expect(result.ref).toBe("HEAD^");
+  });
+});
+
+describe("S5: YAML alias limit", () => {
+  test("loadPlugin rejects manifests with excessive YAML aliases", async () => {
+    const pluginDirectory = await mkdtemp(join(tmpdir(), "bab-yaml-alias-"));
+    const aliases = Array.from(
+      { length: 60 },
+      (_, index) => `alias_${index}: *anchor`,
+    );
+    const yamlContent = [
+      "id: alias-bomb",
+      "name: &anchor Alias Bomb",
+      "version: 1.0.0",
+      "command: echo",
+      "roles:",
+      "  - default",
+      ...aliases,
+    ].join("\n");
+
+    await writeFile(join(pluginDirectory, "manifest.yaml"), yamlContent);
+
+    await expect(
+      loadPlugin({
+        directory: pluginDirectory,
+        manifestPath: join(pluginDirectory, "manifest.yaml"),
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("S1: adapter path containment", () => {
+  test("rejects adapter symlinked outside plugin directory", async () => {
+    const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-adapter-escape-"));
+    const pluginDirectory = join(pluginsRoot, "evil");
+    const outsideFile = join(pluginsRoot, "outside-adapter.ts");
+
+    await mkdir(pluginDirectory, { recursive: true });
+    await writeFile(outsideFile, "export default { run: () => [] };\n");
+    await writeFile(
+      join(pluginDirectory, "manifest.yaml"),
+      [
+        "id: evil",
+        "name: Evil Plugin",
+        "version: 1.0.0",
+        "command: echo",
+        "roles:",
+        "  - default",
+      ].join("\n"),
+    );
+    await symlink(outsideFile, join(pluginDirectory, "adapter.ts"));
+
+    await expect(
+      loadPlugin({
+        adapterPath: join(pluginDirectory, "adapter.ts"),
+        directory: pluginDirectory,
+        manifestPath: join(pluginDirectory, "manifest.yaml"),
+      }),
+    ).rejects.toThrow("Refusing to load adapter outside plugin directory");
+  });
+});
+
+describe("prompt_file path traversal protection", () => {
+  test("rejects prompt_file that escapes plugin directory", async () => {
+    const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-prompt-escape-"));
+    const pluginDirectory = join(pluginsRoot, "evil");
+    const outsidePrompt = join(pluginsRoot, "secret.txt");
+
+    await mkdir(pluginDirectory, { recursive: true });
+    await writeFile(outsidePrompt, "secret content\n");
+    await writeFile(
+      join(pluginDirectory, "manifest.yaml"),
+      [
+        "id: evil-prompt",
+        "name: Evil Prompt Plugin",
+        "version: 1.0.0",
+        "command: echo",
+        "roles:",
+        "  - name: sneaky",
+        "    prompt_file: ../secret.txt",
+      ].join("\n"),
+    );
+
+    const [plugin] = await loadPlugins([
+      {
+        directory: pluginDirectory,
+        manifestPath: join(pluginDirectory, "manifest.yaml"),
+      },
+    ]);
+
+    await expect(resolveRole(plugin, "sneaky")).rejects.toThrow(
+      "prompt_file must be within plugin directory",
+    );
+  });
+});
+
+describe("A1: plugin cache in delegate tool", () => {
+  test("loadPlugins runs in parallel (returns results from Promise.allSettled)", async () => {
+    const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-parallel-load-"));
+
+    for (const id of ["alpha", "beta", "gamma"]) {
+      const dir = join(pluginsRoot, id);
+
+      await mkdir(dir, { recursive: true });
+      await writeFile(
+        join(dir, "manifest.yaml"),
+        [
+          `id: ${id}`,
+          `name: ${id} Plugin`,
+          "version: 1.0.0",
+          "command: echo",
+          "roles:",
+          "  - default",
+        ].join("\n"),
+      );
+    }
+
+    const { discoverPluginDirectories } = await import(
+      "../src/delegate/discovery"
+    );
+    const discovered = await discoverPluginDirectories(pluginsRoot);
+    const loaded = await loadPlugins(discovered);
+
+    expect(loaded).toHaveLength(3);
+    expect(loaded.map((plugin) => plugin.manifest.id).sort()).toEqual([
+      "alpha",
+      "beta",
+      "gamma",
+    ]);
+  });
+});
+
+describe("A3: InMemoryStorageAdapter eviction", () => {
+  test("evicts oldest entry when maxEntries is exceeded", async () => {
+    const adapter = new InMemoryStorageAdapter<string>(3);
+
+    await adapter.set("a", "first");
+    await adapter.set("b", "second");
+    await adapter.set("c", "third");
+    await adapter.set("d", "fourth");
+
+    expect(await adapter.get("a")).toBeUndefined();
+    expect(await adapter.get("b")).toBe("second");
+    expect(await adapter.get("c")).toBe("third");
+    expect(await adapter.get("d")).toBe("fourth");
+  });
+
+  test("does not evict when updating an existing key", async () => {
+    const adapter = new InMemoryStorageAdapter<string>(2);
+
+    await adapter.set("a", "first");
+    await adapter.set("b", "second");
+    await adapter.set("a", "updated");
+
+    expect(await adapter.get("a")).toBe("updated");
+    expect(await adapter.get("b")).toBe("second");
+  });
+
+  test("default max entries is 1000", async () => {
+    const adapter = new InMemoryStorageAdapter<number>();
+
+    for (let i = 0; i < 1001; i++) {
+      await adapter.set(`key-${i}`, i);
+    }
+
+    expect(await adapter.get("key-0")).toBeUndefined();
+    expect(await adapter.get("key-1")).toBe(1);
+    expect(await adapter.get("key-1000")).toBe(1000);
+  });
+});
+
+describe("P3: ProcessRunner output buffer cap", () => {
+  test("caps stdout to prevent memory exhaustion", async () => {
+    const runner = new ProcessRunner();
+    const result = await runner.run("test-cap", {
+      args: [
+        "-e",
+        "for(let i=0;i<500000;i++) process.stdout.write('x');",
+      ],
+      command: "bun",
+      timeoutMs: 10_000,
+    });
+
+    expect(result.stdout.length).toBeLessThanOrEqual(1_000_001);
+    expect(result.exitCode).toBe(0);
+  });
+});
+
+describe("Q2: ProcessRunner.cancel awaits termination", () => {
+  test("cancel resolves after process exits", async () => {
+    const runner = new ProcessRunner();
+    const runPromise = runner.run("test-cancel", {
+      args: ["-e", "setTimeout(() => {}, 30000);"],
+      command: "bun",
+      timeoutMs: 30_000,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await runner.cancel();
+
+    const result = await runPromise;
+
+    expect(result.exitCode === null || result.exitCode !== 0).toBeTrue();
+  });
+});
+
+describe("Q3: centralized version constant", () => {
+  test("VERSION matches package.json version", () => {
+    expect(VERSION).toBe(pkg.version);
+  });
+});

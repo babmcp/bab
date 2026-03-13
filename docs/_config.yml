@@ -1,0 +1,30 @@
+title: Bab
+description: A TypeScript MCP server — gateway between MCP clients and AI systems
+url: "https://babmcp.github.io"
+baseurl: "/bab"
+
+remote_theme: just-the-docs/just-the-docs@v0.10.1
+
+permalink: pretty
+
+color_scheme: dark
+
+aux_links:
+  GitHub: "https://github.com/babmcp/bab"
+
+aux_links_new_tab: true
+
+nav_sort: case_insensitive
+
+heading_anchors: true
+
+search_enabled: true
+search.previews: 3
+
+back_to_top: true
+back_to_top_text: "Back to top"
+
+footer_content: "Bab MCP Server &mdash; MIT License"
+
+exclude:
+  - tools/README.md
