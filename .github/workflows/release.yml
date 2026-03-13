@@ -17,7 +17,7 @@ jobs:
           - runner: macos-latest
             platform: darwin
             arch: arm64
-          - runner: macos-13
+          - runner: macos-15-intel
             platform: darwin
             arch: x64
           - runner: ubuntu-latest
@@ -102,9 +102,11 @@ jobs:
             --arg version "$VERSION" \
             --argjson checksums "$CHECKSUMS_JSON" \
             '{version: $version, checksums: $checksums}')
-          echo "json<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$PAYLOAD" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "json<<EOF"
+            echo "$PAYLOAD"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Trigger homebrew-tap update
         uses: peter-evans/repository-dispatch@v3
