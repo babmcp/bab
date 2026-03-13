@@ -45,10 +45,25 @@ describe("ProviderRegistry", () => {
       }),
     });
 
+    const model = registry.getModelInfo("anthropic/claude-sonnet-4");
+
+    expect(model?.id).toBe("claude-sonnet-4-20250514");
+    expect(model?.provider).toBe("anthropic");
+  });
+
+  test("prefers exact id match over alias match", () => {
+    const registry = new ProviderRegistry({
+      config: createConfig({
+        OPENROUTER_API_KEY: "key",
+      }),
+    });
+
+    // "openai/gpt-5.2" is both an alias for the OpenAI model and the
+    // exact id of the OpenRouter model — exact id should win
     const model = registry.getModelInfo("openai/gpt-5.2");
 
-    expect(model?.id).toBe("gpt-5.2");
-    expect(model?.provider).toBe("openai");
+    expect(model?.id).toBe("openai/gpt-5.2");
+    expect(model?.provider).toBe("openrouter");
   });
 
   test("calls the AI SDK through an injected generateText implementation", async () => {

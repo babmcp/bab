@@ -144,10 +144,14 @@ export class ProviderRegistry {
   }
 
   getModelInfo(modelIdOrAlias: string): ModelInfo | undefined {
+    // Prefer exact id match over alias match to avoid cross-provider collisions
+    const exactMatch = STATIC_MODEL_REGISTRY.find(
+      (model) => model.id === modelIdOrAlias,
+    );
+    if (exactMatch) return exactMatch;
+
     return STATIC_MODEL_REGISTRY.find(
-      (model) =>
-        model.id === modelIdOrAlias ||
-        model.capabilities.aliases.includes(modelIdOrAlias),
+      (model) => model.capabilities.aliases.includes(modelIdOrAlias),
     );
   }
 
