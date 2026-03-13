@@ -18,7 +18,6 @@ const MAX_EMBEDDED_FILE_TOKENS = 50_000;
 const MAX_HISTORY_TURNS = 8;
 
 const ALLOWED_HOME_DIRS = [
-  ".config/bab",
   ".claude",
   ".codex",
   ".copilot",
@@ -233,7 +232,7 @@ export async function embedAbsoluteFiles(
       continue;
     }
 
-    const source = await Bun.file(filePath).text();
+    const source = await Bun.file(resolvedPath).text();
     const tokenCount = estimateTokenCount(source);
 
     if (totalTokens + tokenCount > maxTokens) {

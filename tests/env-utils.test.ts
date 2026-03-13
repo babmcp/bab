@@ -67,6 +67,23 @@ describe("env utilities", () => {
     expect(globalEnv.PATH).toBe("/blocked-global");
     expect(pluginEnv.PATH).toBe("/blocked-plugin");
   });
+
+  test("mergeEnv strips dangerous process env vars from delegate env", () => {
+    const processEnv = {
+      HOME: "/home/user",
+      LD_PRELOAD: "/evil/lib.so",
+      DYLD_INSERT_LIBRARIES: "/evil/lib.dylib",
+      NODE_OPTIONS: "--require /evil/hook.js",
+      SAFE_VAR: "keep-me",
+    };
+
+    const merged = mergeEnv(processEnv, {}, {});
+
+    expect(merged.LD_PRELOAD).toBeUndefined();
+    expect(merged.DYLD_INSERT_LIBRARIES).toBeUndefined();
+    expect(merged.NODE_OPTIONS).toBeUndefined();
+    expect(merged.SAFE_VAR).toBe("keep-me");
+  });
 });
 
 describe("delegate loader env integration", () => {
