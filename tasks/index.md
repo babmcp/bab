@@ -32,8 +32,11 @@ M1 (MCP Server Core)
 ├── M13 (Install Script) ── after M11, M12 (brew fallback)
 │   └── T01 (install.sh) → T02 (brew fallback) → T03 (test)
 │
-└── M14 (Codex Profiles) ── independent, any time
-    └── T01 (ALLOWED_FLAGS) → T02 (test)
+├── M14 (Codex Profiles) ── independent, any time
+│   └── T01 (ALLOWED_FLAGS) → T02 (test)
+│
+└── M15 (Plugin Tool Prompts) ── independent, any time
+    └── T01 (manifest + loader) → T02 (gateway) → T03 (tool wiring) → T04 (tests)
 ```
 
 Notes:
@@ -41,7 +44,7 @@ Notes:
 - M11 has no blockers — can start immediately.
 - M12 and M13 depend on M11 (need published releases).
 - M13 brew fallback depends on M12 (tap must exist).
-- M14 is fully independent — can be done in parallel with anything.
+- M14, M15 are fully independent — can be done in parallel with anything.
 
 ---
 
@@ -63,6 +66,7 @@ Notes:
 | M12 | Homebrew Tap | in-progress | 3/4 | — | M13 |
 | M13 | Install Script | in-progress | 2/3 | — | — |
 | M14 | Codex Profiles | completed | 2/2 | — | — |
+| M15 | Plugin Tool Prompts | completed | 4/4 | — | — |
 
 ---
 
@@ -202,3 +206,14 @@ Notes:
 |------|-------------|------|--------|
 | M14-T01 | Add profile to ALLOWED_FLAGS | — | pending |
 | M14-T02 | Test | M14-T01 | pending |
+
+### M15 — Plugin Tool Prompts
+
+Plan: `plans/20260314_plugin_tool_prompts.md`
+
+| Task | Description | Deps | Status |
+|------|-------------|------|--------|
+| M15-T01 | Manifest schema + loader caching | — | completed |
+| M15-T02 | ModelGateway toolName + prompt resolution | M15-T01 | completed |
+| M15-T03 | Wire toolName through tools | M15-T02 | completed |
+| M15-T04 | Tests | M15-T03 | completed |
