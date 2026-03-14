@@ -134,7 +134,24 @@ tool_prompts:
 
 Each key is a tool name, and the value is a path to a plain text file relative to the plugin directory. The file's contents **replace** the built-in system prompt entirely for that tool.
 
-Available tool names: `chat`, `challenge`, `thinkdeep`, `codereview`, `debug`, `analyze`, `refactor`, `testgen`, `secaudit`, `docgen`, `tracer`, `precommit`, `planner`, `consensus`.
+Available tool names:
+
+| Tool | Description |
+|------|-------------|
+| `chat` | General conversation |
+| `challenge` | Challenge/critique ideas |
+| `thinkdeep` | Deep thinking/reasoning |
+| `codereview` | Code review |
+| `debug` | Debugging assistance |
+| `analyze` | Code analysis |
+| `refactor` | Refactoring suggestions |
+| `testgen` | Test generation |
+| `secaudit` | Security audit |
+| `docgen` | Documentation generation |
+| `tracer` | Trace/flow analysis |
+| `precommit` | Pre-commit checks |
+| `planner` | Planning tasks |
+| `consensus` | Multi-model consensus |
 
 Prompt files are read and cached when the plugin loads. Paths must stay within the plugin directory (same containment check as role `prompt_file`). If a prompt file cannot be read, bab logs a warning and skips that entry — the plugin still loads normally.
 
