@@ -37,6 +37,10 @@ tag_pattern = "v[0-9].*"
 skip_tags = ""
 sort_commits = "oldest"
 
+commit_preprocessors = [
+    { pattern = "Co-authored-by:.*", replace = "" },
+]
+
 commit_parsers = [
     { message = "^Merge", skip = true },
     { message = "^chore: update changelog", skip = true },
