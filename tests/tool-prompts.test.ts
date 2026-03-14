@@ -37,6 +37,22 @@ describe("tool_prompts manifest schema", () => {
     expect(parsed.tool_prompts).toBeUndefined();
   });
 
+  test("rejects tool_prompts with empty key or value", () => {
+    expect(() =>
+      PluginManifestSchema.parse({
+        ...BASE_MANIFEST,
+        tool_prompts: { "": "prompts/codereview.txt" },
+      }),
+    ).toThrow();
+
+    expect(() =>
+      PluginManifestSchema.parse({
+        ...BASE_MANIFEST,
+        tool_prompts: { codereview: "" },
+      }),
+    ).toThrow();
+  });
+
   test("rejects tool_prompts with non-string values", () => {
     expect(() =>
       PluginManifestSchema.parse({
@@ -142,7 +158,9 @@ describe("tool_prompts loader caching", () => {
     );
 
     const discovered = await discoverPluginDirectories(pluginsRoot);
+    const loaded = await loadPlugin(discovered[0]!);
 
-    expect(loadPlugin(discovered[0]!)).rejects.toThrow(/outside plugin directory/);
+    // Bad prompt entry is skipped; plugin still loads
+    expect(loaded.resolvedToolPrompts).toBeUndefined();
   });
 });

@@ -136,7 +136,9 @@ Each key is a tool name, and the value is a path to a plain text file relative t
 
 Available tool names: `chat`, `challenge`, `thinkdeep`, `codereview`, `debug`, `analyze`, `refactor`, `testgen`, `secaudit`, `docgen`, `tracer`, `precommit`, `planner`, `consensus`.
 
-Prompt files are read and cached when the plugin loads. Paths must stay within the plugin directory (same containment check as role `prompt_file`). If a tool name is not listed, bab uses its built-in prompt.
+Prompt files are read and cached when the plugin loads. Paths must stay within the plugin directory (same containment check as role `prompt_file`). If a prompt file cannot be read, bab logs a warning and skips that entry — the plugin still loads normally.
+
+**Precedence**: Tool prompts and role prompts serve different purposes. Role prompts (via `roles[].prompt_file`) control the system prompt for the `delegate` tool. Tool prompts (via `tool_prompts`) control the system prompt for workflow tools like `codereview` or `secaudit` when they route through a plugin model. If a tool name is not listed in `tool_prompts`, bab uses its built-in prompt.
 
 ## Conformance Check
 
