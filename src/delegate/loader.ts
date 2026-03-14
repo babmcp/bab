@@ -70,20 +70,27 @@ async function resolveToolPrompts(
     return undefined;
   }
 
-  const entries = await Promise.all(
-    Object.entries(manifest.tool_prompts).map(async ([toolName, promptPath]) => {
+  const resolved: Record<string, string> = {};
+
+  for (const [toolName, promptPath] of Object.entries(manifest.tool_prompts)) {
+    try {
       const candidatePath = resolve(pluginDirectory, promptPath);
       const resolvedPromptPath = await assertPathContainment(
         candidatePath,
         pluginDirectory,
         `tool prompt "${toolName}"`,
       );
+      resolved[toolName] = await Bun.file(resolvedPromptPath).text();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      logger.warn(
+        `Skipping tool prompt "${toolName}" for plugin "${manifest.id}": ${message}`,
+      );
+    }
+  }
 
-      return [toolName, await Bun.file(resolvedPromptPath).text()] as const;
-    }),
-  );
-
-  return Object.fromEntries(entries);
+  return Object.keys(resolved).length > 0 ? resolved : undefined;
 }
 
 export async function loadPlugin(
