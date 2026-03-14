@@ -177,6 +177,29 @@ Bab creates and uses `~/.config/bab/` on first run:
 - `~/.config/bab/prompts/`
   prompt overrides or additional prompt assets
 
+> **Note:** Environment variables set in your MCP client config take priority over
+> the `~/.config/bab/env` file. For example, if you set `OPENAI_API_KEY` in both
+> places, the MCP config value wins.
+>
+> ```json
+> {
+>   "mcpServers": {
+>     "bab": {
+>       "command": "/absolute/path/to/bab",
+>       "args": ["serve"],
+>       "env": {
+>         "OPENAI_API_KEY": "sk-mcp-value"
+>       }
+>     }
+>   }
+> }
+> ```
+>
+> ```bash
+> # ~/.config/bab/env
+> OPENAI_API_KEY=sk-file-value   # overridden by the MCP config above
+> ```
+
 Supported provider environment variables:
 
 - `GOOGLE_API_KEY`
