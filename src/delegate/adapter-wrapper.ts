@@ -42,7 +42,7 @@ const RAW_TIMEOUT = Number(process.env.BAB_CLI_TIMEOUT_MS);
 const DEFAULT_TIMEOUT_MS =
   Number.isFinite(RAW_TIMEOUT) && RAW_TIMEOUT > 0
     ? RAW_TIMEOUT
-    : 30 * 60 * 1_000;
+    : 3 * 60 * 60 * 1_000;
 
 export function wrapSimpleAdapter(
   adapter: SimpleAdapter,
