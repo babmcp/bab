@@ -57,4 +57,5 @@ export interface LoadedPlugin {
   directory: string;
   manifest: PluginManifest;
   manifestPath: string;
+  resolvedToolPrompts?: Record<string, string>;
 }

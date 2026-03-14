@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
 
 import YAML from "yaml";
 
@@ -61,6 +62,30 @@ async function loadAdapterModule(
   return (module.default ?? module.adapter ?? module) as DelegatePluginAdapter;
 }
 
+async function resolveToolPrompts(
+  manifest: PluginManifest,
+  pluginDirectory: string,
+): Promise<Record<string, string> | undefined> {
+  if (!manifest.tool_prompts) {
+    return undefined;
+  }
+
+  const entries = await Promise.all(
+    Object.entries(manifest.tool_prompts).map(async ([toolName, promptPath]) => {
+      const candidatePath = resolve(pluginDirectory, promptPath);
+      const resolvedPromptPath = await assertPathContainment(
+        candidatePath,
+        pluginDirectory,
+        `tool prompt "${toolName}"`,
+      );
+
+      return [toolName, await Bun.file(resolvedPromptPath).text()] as const;
+    }),
+  );
+
+  return Object.fromEntries(entries);
+}
+
 export async function loadPlugin(
   discoveredPlugin: DiscoveredPlugin,
 ): Promise<LoadedPlugin & { env: Record<string, string> }> {
@@ -72,6 +97,10 @@ export async function loadPlugin(
   const manifestSource = await Bun.file(resolvedManifestPath).text();
   const parsedManifest = YAML.parse(manifestSource, { maxAliasCount: 10 });
   const manifest = PluginManifestSchema.parse(parsedManifest);
+  const resolvedToolPrompts = await resolveToolPrompts(
+    manifest,
+    discoveredPlugin.directory,
+  );
   const env = await readPluginEnv(discoveredPlugin.directory);
 
   if (!Bun.which(manifest.command)) {
@@ -101,6 +130,7 @@ export async function loadPlugin(
     env,
     manifest,
     manifestPath: discoveredPlugin.manifestPath,
+    resolvedToolPrompts,
   };
 }
 
