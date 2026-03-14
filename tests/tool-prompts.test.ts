@@ -128,6 +128,98 @@ describe("tool_prompts loader caching", () => {
     expect(loaded.resolvedToolPrompts).toBeUndefined();
   });
 
+  test("loads good prompts and skips bad ones (partial success)", async () => {
+    const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-tp-partial-"));
+    const pluginDir = join(pluginsRoot, "partial");
+    const promptsDir = join(pluginDir, "prompts");
+
+    await mkdir(promptsDir, { recursive: true });
+    await writeFile(
+      join(promptsDir, "codereview.txt"),
+      "Good prompt content.",
+    );
+    // debug.txt does not exist — should be skipped
+
+    await writeFile(
+      join(pluginDir, "manifest.yaml"),
+      [
+        "id: partial",
+        "name: Partial Plugin",
+        "version: 1.0.0",
+        "command: echo",
+        "roles:",
+        "  - default",
+        "tool_prompts:",
+        "  codereview: prompts/codereview.txt",
+        "  debug: prompts/missing.txt",
+      ].join("\n"),
+    );
+
+    const discovered = await discoverPluginDirectories(pluginsRoot);
+    const loaded = await loadPlugin(discovered[0]!);
+
+    expect(loaded.resolvedToolPrompts).toBeDefined();
+    expect(loaded.resolvedToolPrompts!.codereview).toBe("Good prompt content.");
+    expect(loaded.resolvedToolPrompts!.debug).toBeUndefined();
+  });
+
+  test("skips unknown tool names with warning", async () => {
+    const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-tp-unknown-"));
+    const pluginDir = join(pluginsRoot, "unknown-tool");
+    const promptsDir = join(pluginDir, "prompts");
+
+    await mkdir(promptsDir, { recursive: true });
+    await writeFile(join(promptsDir, "foo.txt"), "Some prompt.");
+
+    await writeFile(
+      join(pluginDir, "manifest.yaml"),
+      [
+        "id: unknown-tool",
+        "name: Unknown Tool Plugin",
+        "version: 1.0.0",
+        "command: echo",
+        "roles:",
+        "  - default",
+        "tool_prompts:",
+        "  not_a_real_tool: prompts/foo.txt",
+      ].join("\n"),
+    );
+
+    const discovered = await discoverPluginDirectories(pluginsRoot);
+    const loaded = await loadPlugin(discovered[0]!);
+
+    // Unknown tool name is skipped, so no prompts are resolved
+    expect(loaded.resolvedToolPrompts).toBeUndefined();
+  });
+
+  test("rejects ../traversal paths that escape plugin directory", async () => {
+    const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-tp-dotdot-"));
+    const pluginDir = join(pluginsRoot, "dotdot");
+
+    await mkdir(pluginDir, { recursive: true });
+    await writeFile(join(pluginsRoot, "secret.txt"), "secret prompt");
+
+    await writeFile(
+      join(pluginDir, "manifest.yaml"),
+      [
+        "id: dotdot",
+        "name: Dotdot Plugin",
+        "version: 1.0.0",
+        "command: echo",
+        "roles:",
+        "  - default",
+        "tool_prompts:",
+        "  codereview: ../secret.txt",
+      ].join("\n"),
+    );
+
+    const discovered = await discoverPluginDirectories(pluginsRoot);
+    const loaded = await loadPlugin(discovered[0]!);
+
+    // Path escape is caught; plugin still loads
+    expect(loaded.resolvedToolPrompts).toBeUndefined();
+  });
+
   test("rejects prompt file paths that escape plugin directory", async () => {
     const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-tp-escape-"));
     const pluginDir = join(pluginsRoot, "escaper");

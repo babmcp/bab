@@ -2,6 +2,7 @@ import type { BabConfig } from "../config";
 import { getLoadedPlugins } from "../delegate/plugin-cache";
 import { resolveRole } from "../delegate/roles";
 import { mergeEnv } from "../utils/env";
+import { logger } from "../utils/logger";
 import type { GenerateTextResult, ThinkingMode } from "./registry";
 import type { ProviderRegistry } from "./registry";
 import { estimateTokenCount } from "../utils/tokens";
@@ -84,10 +85,17 @@ export class ModelGateway {
     }
 
     const role = await resolveRole(plugin, "default");
-    const delegateSystemPrompt =
-      (options.toolName
-        ? plugin.resolvedToolPrompts?.[options.toolName]
-        : undefined) ?? systemPrompt;
+    const pluginPromptOverride = options.toolName
+      ? plugin.resolvedToolPrompts?.[options.toolName]
+      : undefined;
+
+    if (pluginPromptOverride) {
+      logger.debug(
+        `Using plugin "${pluginId}" prompt override for tool "${options.toolName}"`,
+      );
+    }
+
+    const delegateSystemPrompt = pluginPromptOverride ?? systemPrompt;
 
     // Inject model and thinking_mode as role args for the adapter to use
     const augmentedRole = {

@@ -1,0 +1,16 @@
+export const OVERRIDABLE_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "analyze",
+  "challenge",
+  "chat",
+  "codereview",
+  "consensus",
+  "debug",
+  "docgen",
+  "planner",
+  "precommit",
+  "refactor",
+  "secaudit",
+  "testgen",
+  "thinkdeep",
+  "tracer",
+]);

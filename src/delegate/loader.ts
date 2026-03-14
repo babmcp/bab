@@ -8,6 +8,7 @@ import type { PluginManifest } from "../types";
 import { readPluginEnv } from "../utils/env";
 import { logger } from "../utils/logger";
 import { assertPathContainment } from "../utils/path";
+import { OVERRIDABLE_TOOL_NAMES } from "../tools/overridable-tools";
 import { wrapSimpleAdapter } from "./adapter-wrapper";
 import type {
   DelegatePluginAdapter,
@@ -70,9 +71,15 @@ async function resolveToolPrompts(
     return undefined;
   }
 
-  const resolved: Record<string, string> = {};
+  const resolved: Record<string, string> = Object.create(null);
 
   for (const [toolName, promptPath] of Object.entries(manifest.tool_prompts)) {
+    if (!OVERRIDABLE_TOOL_NAMES.has(toolName)) {
+      logger.warn(
+        `Unknown tool name "${toolName}" in tool_prompts for plugin "${manifest.id}" — prompt will never be used`,
+      );
+      continue;
+    }
     try {
       const candidatePath = resolve(pluginDirectory, promptPath);
       const resolvedPromptPath = await assertPathContainment(
