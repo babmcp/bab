@@ -35,7 +35,7 @@ export class ProcessRunner {
       env,
       input,
       killGraceMs = 250,
-      timeoutMs = 30 * 60 * 1000,
+      timeoutMs = 3 * 60 * 60 * 1_000,
     } = options;
 
     if (this.activeProcesses.has(runId)) {
