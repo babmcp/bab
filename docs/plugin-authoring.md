@@ -15,8 +15,10 @@ my-plugin/
   manifest.yaml
   adapter.ts
   prompts/
-    default.txt
-    planner.txt
+    default.txt        # role prompt
+    planner.txt        # role prompt
+    codereview.txt     # tool prompt (optional)
+    secaudit.txt       # tool prompt (optional)
 ```
 
 ## Manifest
@@ -45,6 +47,9 @@ capabilities:
   supports_streaming: false
   supports_working_directory: true
   output_format: jsonl
+tool_prompts:
+  codereview: prompts/codereview.txt
+  debug: prompts/debug.txt
 delegate_api_version: 1
 ```
 
@@ -58,6 +63,7 @@ delegate_api_version: 1
 | `command` | yes | CLI binary name (must be on `PATH`). |
 | `roles` | yes | At least one role. Can be a built-in name (`default`, `planner`, `codereviewer`, `coding`) or a full role object. |
 | `capabilities` | no | Defaults: cancellation off, images off, streaming off, working directory on, output `text`. |
+| `tool_prompts` | no | Map of tool name to prompt file path. See [Tool Prompts](#tool-prompts). |
 | `delegate_api_version` | no | Defaults to `1`. |
 
 ### Role Definition
@@ -107,11 +113,30 @@ Useful variables:
 
 | Variable | Description |
 |---|---|
-| `BAB_CLI_TIMEOUT_MS` | Override the default CLI timeout (default: 5 minutes). Applies to all adapters. |
+| `BAB_CLI_TIMEOUT_MS` | Override the default CLI timeout (default: 3 hours). Applies to all adapters. |
 
 ## Prompt Files
 
 Role prompts live in the `prompts/` directory. They are plain text files whose content becomes the role's system prompt, prepended to the user's prompt when `combinePrompt()` is called.
+
+## Tool Prompts
+
+Plugins can provide custom system prompts for bab's workflow tools (`codereview`, `debug`, `thinkdeep`, `secaudit`, etc.). When a tool routes through a plugin model (e.g. `copilot/gpt-4`), bab checks the plugin's `tool_prompts` for a matching entry and uses that prompt instead of the built-in default.
+
+Add a `tool_prompts` section to your `manifest.yaml`:
+
+```yaml
+tool_prompts:
+  codereview: prompts/codereview.txt
+  debug: prompts/debug.txt
+  secaudit: prompts/secaudit.txt
+```
+
+Each key is a tool name, and the value is a path to a plain text file relative to the plugin directory. The file's contents **replace** the built-in system prompt entirely for that tool.
+
+Available tool names: `chat`, `challenge`, `thinkdeep`, `codereview`, `debug`, `analyze`, `refactor`, `testgen`, `secaudit`, `docgen`, `tracer`, `precommit`, `planner`, `consensus`.
+
+Prompt files are read and cached when the plugin loads. Paths must stay within the plugin directory (same containment check as role `prompt_file`). If a tool name is not listed, bab uses its built-in prompt.
 
 ## Conformance Check
 
@@ -123,21 +148,62 @@ bab test-plugin ./my-plugin
 
 ## Installation
 
-Install a single plugin directory:
+### Install all first-party plugins
 
 ```bash
-bab add ./my-plugin
+bab add babmcp/plugins
 ```
 
-Install all plugins from a multi-plugin repository:
+This installs all plugins from the [babmcp/plugins](https://github.com/babmcp/plugins) repository (`claude`, `codex`, `copilot`).
+
+### Install from any git repository
 
 ```bash
-bab add git@github.com:babmcp/plugins.git
+# GitHub shorthand
+bab add yourorg/your-plugins
+
+# SSH URL
+bab add git@github.com:yourorg/your-plugins.git
+
+# HTTPS URL
+bab add https://github.com/yourorg/your-plugins.git
+
+# Pin to a specific branch, tag, or commit
+bab add babmcp/plugins#v1.2.0
+```
+
+### Install a single plugin
+
+If a repository contains multiple plugins and you only want one, clone the repo and point `bab add` at the specific subdirectory's git URL:
+
+```bash
+# Install only the copilot plugin
+bab add git@github.com:babmcp/plugins.git  # installs all — then remove what you don't need:
+bab remove codex
+bab remove claude
+```
+
+### Skip confirmation
+
+```bash
+bab add babmcp/plugins --yes
+```
+
+### List installed plugins
+
+```bash
+bab list
+```
+
+### Remove a plugin
+
+```bash
+bab remove <plugin-id>
 ```
 
 ## Multi-Plugin Repositories
 
-Bab supports repositories with multiple plugin directories at the top level:
+Bab supports repositories with multiple plugin directories at the top level. Each subdirectory with a `manifest.yaml` is discovered and installed:
 
 ```text
 bab-plugins/
