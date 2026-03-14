@@ -39,6 +39,7 @@ sort_commits = "oldest"
 
 commit_parsers = [
     { message = "^Merge", skip = true },
+    { message = "^chore: update changelog", skip = true },
     { message = ": add ", group = "Added" },
     { message = ": scaffold", group = "Added" },
     { message = ": implement", group = "Added" },
