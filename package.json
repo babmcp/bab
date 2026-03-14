@@ -28,7 +28,7 @@
     "prepack": "bun run build",
     "test": "bun test --ignore tests/integration.test.ts --ignore tests/opencode-plugin.e2e.test.ts",
     "test:e2e": "bun test tests/integration.test.ts tests/opencode-plugin.e2e.test.ts --timeout 15000",
-    "changelog": "git-cliff --config cliff.toml -o CHANGELOG.md"
+    "changelog:update": "git-cliff --config cliff.toml -o CHANGELOG.md"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.58",
