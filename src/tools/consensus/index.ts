@@ -169,6 +169,7 @@ export function createConsensusTool(context: ToolContext): RegisteredTool {
                 {
                   temperature: modelConfig.temperature ?? request.temperature,
                   thinkingMode: modelConfig.thinking_mode,
+                  toolName: "consensus",
                 },
               ),
             ),
@@ -217,6 +218,7 @@ export function createConsensusTool(context: ToolContext): RegisteredTool {
               {
                 temperature: modelConfig.temperature ?? request.temperature,
                 thinkingMode: modelConfig.thinking_mode,
+                toolName: "consensus",
               },
             );
 

@@ -74,7 +74,11 @@ export function createSimpleTool<
     execute: async (rawArgs) => {
       try {
         const request = inputSchema.parse(rawArgs) as TRequest;
-        const selectedModel = selectModel(context.providerRegistry, request.model);
+        const selectedModel = selectModel(
+          context.providerRegistry,
+          request.model?.includes("/") ? undefined : request.model,
+        );
+        const delegateModelId = request.model?.includes("/") ? request.model : undefined;
         const conversation = await prepareConversation(
           context.conversationStore,
           request.continuation_id,
@@ -96,15 +100,25 @@ export function createSimpleTool<
           `USER\n${prompt}`,
         );
 
-        const aiResult = await context.providerRegistry.generateText(
-          selectedModel.id,
-          prompt,
-          systemPrompt,
-          {
-            maxOutputTokens,
-            temperature: request.temperature,
-          },
-        );
+        const aiResult = delegateModelId
+          ? await context.modelGateway.query(
+              delegateModelId,
+              prompt,
+              systemPrompt,
+              {
+                temperature: request.temperature,
+                toolName: name,
+              },
+            )
+          : await context.providerRegistry.generateText(
+              selectedModel.id,
+              prompt,
+              systemPrompt,
+              {
+                maxOutputTokens,
+                temperature: request.temperature,
+              },
+            );
 
         await recordConversationTurn(
           context.conversationStore,

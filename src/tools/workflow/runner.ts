@@ -90,8 +90,11 @@ export class WorkflowRunner<
       const parsedRequest = this.config.inputSchema.parse(rawArgs) as TRequest;
       const selectedModel = selectModel(
         this.config.context.providerRegistry,
-        parsedRequest.model,
+        parsedRequest.model?.includes("/") ? undefined : parsedRequest.model,
       );
+      const delegateModelId = parsedRequest.model?.includes("/")
+        ? parsedRequest.model
+        : undefined;
       const conversation = await prepareConversation(
         this.config.context.conversationStore,
         parsedRequest.continuation_id,
@@ -114,15 +117,25 @@ export class WorkflowRunner<
         `USER STEP ${parsedRequest.step_number}\n${prompt}`,
       );
 
-      const aiResult = await this.config.context.providerRegistry.generateText(
-        selectedModel.id,
-        prompt,
-        this.config.systemPrompt,
-        {
-          maxOutputTokens: this.config.maxOutputTokens,
-          temperature: parsedRequest.temperature,
-        },
-      );
+      const aiResult = delegateModelId
+        ? await this.config.context.modelGateway.query(
+            delegateModelId,
+            prompt,
+            this.config.systemPrompt,
+            {
+              temperature: parsedRequest.temperature,
+              toolName: this.config.name,
+            },
+          )
+        : await this.config.context.providerRegistry.generateText(
+            selectedModel.id,
+            prompt,
+            this.config.systemPrompt,
+            {
+              maxOutputTokens: this.config.maxOutputTokens,
+              temperature: parsedRequest.temperature,
+            },
+          );
 
       let expertAnalysis: GenerateTextResult | undefined;
 
@@ -139,15 +152,25 @@ export class WorkflowRunner<
             aiResult.text,
           ].join("\n\n");
 
-        expertAnalysis = await this.config.context.providerRegistry.generateText(
-          selectedModel.id,
-          expertPrompt,
-          this.config.systemPrompt,
-          {
-            maxOutputTokens: this.config.maxOutputTokens,
-            temperature: parsedRequest.temperature,
-          },
-        );
+        expertAnalysis = delegateModelId
+          ? await this.config.context.modelGateway.query(
+              delegateModelId,
+              expertPrompt,
+              this.config.systemPrompt,
+              {
+                temperature: parsedRequest.temperature,
+                toolName: this.config.name,
+              },
+            )
+          : await this.config.context.providerRegistry.generateText(
+              selectedModel.id,
+              expertPrompt,
+              this.config.systemPrompt,
+              {
+                maxOutputTokens: this.config.maxOutputTokens,
+                temperature: parsedRequest.temperature,
+              },
+            );
       }
 
       const payload = this.config.formatPayload({
