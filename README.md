@@ -190,10 +190,17 @@ Supported provider environment variables:
 
 Each plugin lives under `~/.config/bab/plugins/<plugin-id>/` and is discovered by `manifest.yaml`.
 
-Bab keeps `opencode` bundled as the built-in reference plugin. Install the external first-party plugins with:
+Bab keeps `opencode` bundled as the built-in reference plugin. Install the external first-party plugins:
 
 ```bash
-bab add git@github.com:babmcp/plugins.git
+# Install all first-party plugins (claude, codex, copilot)
+bab add babmcp/plugins
+
+# List installed plugins
+bab list
+
+# Remove a specific plugin
+bab remove <plugin-id>
 ```
 
 Minimal manifest shape:
@@ -207,6 +214,16 @@ roles:
   - default
 delegate_api_version: 1
 ```
+
+Plugins can also provide custom system prompts for workflow tools via `tool_prompts`:
+
+```yaml
+tool_prompts:
+  codereview: prompts/codereview.txt
+  secaudit: prompts/secaudit.txt
+```
+
+When a tool routes through a plugin model, bab uses the plugin's prompt instead of the built-in default. See [Plugin Authoring](https://babmcp.github.io/bab/plugin-authoring/) for details.
 
 Optional `adapter.ts` files can implement runtime behavior for CLI parsing, validation, and cancellation. Plugins without adapters can still be discovered, but the `delegate` tool requires an adapter to execute them.
 
