@@ -23,10 +23,16 @@ Task index: `tasks/index.md`
 - Commit after each task completes with message: `M<N>-T<NN>: <short description>`.
 - Merge to `main` only when the full milestone passes its exit criteria.
 - After a branch is merged into `main`, delete the merged branch locally and on the remote unless the user explicitly asks to keep it.
-- **Co-authorship**: Every commit must include a `Co-authored-by` trailer for each AI agent that contributed to the work. Add all that apply:
-  - `Co-authored-by: codex <codex@openai.com>`
-  - `Co-authored-by: claude <claude@anthropic.com>`
-  - `Co-authored-by: copilot <copilot@github.com>`
+- **Co-authorship**: Every commit must include a `Co-authored-by` trailer for each AI agent that contributed. This includes:
+  - Direct code authorship
+  - Work delegated via bab tools (`delegate`, `chat`, `consensus`, `codereview`, `thinkdeep`, etc.)
+  - Reviews or analysis routed through a plugin model (e.g. `copilot/gpt-4`, `codex/o3`)
+  - **Before every commit**, review which bab tools (or any MCP tools) were called in the session and which agents/models they routed through. Add a trailer only for agents that **actually produced output** — not for models that failed, were unavailable, or didn't exist.
+  - Example trailers:
+    - `Co-authored-by: claude <claude@anthropic.com>`
+    - `Co-authored-by: codex <codex@openai.com>`
+    - `Co-authored-by: copilot <copilot@github.com>`
+  - Use the agent's name and official email. If the agent is not listed above, use `<agent-name> <agent-name>@<provider-domain>`.
 
 ### Git worktrees for parallel work
 - **Use `git worktree`** when working on two independent tasks simultaneously (tasks with no shared dependencies).
