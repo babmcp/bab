@@ -9,6 +9,7 @@ import { estimateTokenCount } from "../utils/tokens";
 export interface ModelQueryOptions {
   temperature?: number;
   thinkingMode?: ThinkingMode;
+  toolName?: string;
   workingDirectory?: string;
 }
 
@@ -83,6 +84,10 @@ export class ModelGateway {
     }
 
     const role = await resolveRole(plugin, "default");
+    const delegateSystemPrompt =
+      (options.toolName
+        ? plugin.resolvedToolPrompts?.[options.toolName]
+        : undefined) ?? systemPrompt;
 
     // Inject model and thinking_mode as role args for the adapter to use
     const augmentedRole = {
@@ -96,8 +101,8 @@ export class ModelGateway {
     };
 
     // Prepend system prompt to the prompt if provided (delegate has no separate system field)
-    const fullPrompt = systemPrompt
-      ? `${systemPrompt}\n\n${prompt}`
+    const fullPrompt = delegateSystemPrompt
+      ? `${delegateSystemPrompt}\n\n${prompt}`
       : prompt;
 
     const runId = crypto.randomUUID();
