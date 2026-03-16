@@ -68,7 +68,7 @@ jobs:
       - name: Determine pre-release
         id: meta
         run: |
-          if echo "$GITHUB_REF_NAME" | grep -qE '(beta|rc)'; then
+          if echo "$GITHUB_REF_NAME" | grep -qE '(beta|rc|[0-9]{8})'; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
