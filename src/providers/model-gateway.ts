@@ -48,9 +48,13 @@ export class ModelGateway {
     const slashIndex = modelId.indexOf("/");
 
     if (slashIndex === -1) {
+      const available = this.providerRegistry
+        .listModels()
+        .map((m) => m.id)
+        .join(", ");
       throw new Error(
         `Model "${modelId}" not found in SDK registry. ` +
-          `Call list_models to see available SDK models. ` +
+          `Available SDK models: ${available || "none (no API keys configured)"}. ` +
           `For plugin models, use "pluginId/modelName" format (e.g. "copilot/claude-sonnet-4").`,
       );
     }
