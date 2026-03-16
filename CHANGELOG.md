@@ -10,11 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Lazy tool loading via `BAB_LAZY_TOOLS=1` — register only 5 essential tools at startup instead of 17, reducing initial schema payload by 80%.
+- `tools` meta-tool for discovering and activating tools on demand by name, category, or all at once.
+- Tool manifest system (`src/tools/manifest.ts`) with categories: analysis, generation, review, planning, delegation, info.
+- Auto-load on `callTool` — unloaded tools load transparently on first use.
+- `tools/list_changed` notification support so clients refresh after dynamic registration.
+- Concurrency-safe tool loading via promise coalescing.
 - Add changelog script and generate CHANGELOG.md.
 - Support `BAB_DISABLED_TOOLS` env var to blocklist specific tools from registration.
 
 ### Changed
 
+- Add `.describe()` to schema fields that LLMs commonly misuse: `continuation_id`, `next_step_required`, `relevant_files`, `cli_name`, and consensus fields (`models`, `model_responses`, `current_model_index`, `parallel`).
+- Add model ID format guidance to all tool `model` fields — explains SDK IDs vs `pluginId/modelName` format.
+- Model-not-found errors now list available SDK model IDs directly.
+- `list_models` description updated to position it as the discovery tool for model IDs.
 - Auto-generate changelog on tag push, mark rc/beta as pre-release.
 - Note that MCP client env vars override the bab env file.
 
