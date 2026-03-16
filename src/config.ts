@@ -16,6 +16,7 @@ export interface BabConfigPaths {
 
 export interface BabConfig {
   env: Record<string, string>;
+  lazyTools: boolean;
   paths: BabConfigPaths;
 }
 
@@ -122,11 +123,14 @@ export async function loadConfig(homeDirectory?: string): Promise<BabConfig> {
   const fileEnv = await readConfigEnvFile(paths.envFile);
   const processEnv = currentProcessEnv();
 
+  const env = {
+    ...sanitizeFileEnv(fileEnv),
+    ...processEnv,
+  };
+
   return {
-    env: {
-      ...sanitizeFileEnv(fileEnv),
-      ...processEnv,
-    },
+    env,
+    lazyTools: env.BAB_LAZY_TOOLS === "1" || env.BAB_LAZY_TOOLS === "true",
     paths,
   };
 }

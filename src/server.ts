@@ -22,23 +22,8 @@ import { createModelGateway } from "./providers/model-gateway";
 import { createProviderRegistry } from "./providers/registry";
 import { generateSkillContent } from "./skills/generator";
 import { regenerateSkills } from "./skills/index";
-import { createAnalyzeTool } from "./tools/analyze";
-import { createChallengeTool } from "./tools/challenge";
-import { createChatTool } from "./tools/chat";
-import { createCodeReviewTool } from "./tools/codereview";
-import { createConsensusTool } from "./tools/consensus";
-import { createDebugTool } from "./tools/debug";
-import { createDelegateTool } from "./tools/delegate";
-import { createDocgenTool } from "./tools/docgen";
-import { createListModelsTool } from "./tools/listmodels";
-import { createPlannerTool } from "./tools/planner";
-import { createPrecommitTool } from "./tools/precommit";
-import { createRefactorTool } from "./tools/refactor";
-import { createSecauditTool } from "./tools/secaudit";
-import { createTestgenTool } from "./tools/testgen";
-import { createThinkDeepTool } from "./tools/thinkdeep";
-import { createTracerTool } from "./tools/tracer";
-import { createVersionTool } from "./tools/version";
+import { ALWAYS_LOADED_TOOLS, buildToolManifest, type ToolManifestEntry } from "./tools/manifest";
+import { createToolsTool } from "./tools/tools";
 import { getPrompt, listPrompts } from "./prompts/slash-commands";
 import {
   type Result,
@@ -129,15 +114,17 @@ function toMcpTool(tool: RegisteredTool): McpTool {
 export class BabServer {
   readonly toolRegistry = new Map<string, RegisteredTool>();
   readonly protocolServer: Server;
+  manifest = new Map<string, ToolManifestEntry>();
 
   private isConnected = false;
   private isClosing = false;
+  private readonly loadingPromises = new Map<string, Promise<RegisteredTool>>();
 
   constructor() {
     this.protocolServer = new Server(SERVER_INFO, {
       capabilities: {
         prompts: {},
-        tools: {},
+        tools: { listChanged: true },
       },
     });
 
@@ -181,6 +168,32 @@ export class BabServer {
     this.toolRegistry.set(tool.name, tool);
   }
 
+  async sendToolListChanged(): Promise<void> {
+    await this.protocolServer.sendToolListChanged();
+  }
+
+  async loadFromManifest(name: string): Promise<RegisteredTool | null> {
+    const existing = this.toolRegistry.get(name);
+    if (existing) return existing;
+
+    const inFlight = this.loadingPromises.get(name);
+    if (inFlight) return inFlight;
+
+    const entry = this.manifest.get(name);
+    if (!entry) return null;
+
+    const promise = Promise.resolve(entry.factory()).then((tool) => {
+      this.registerTool(tool);
+      this.loadingPromises.delete(name);
+      return tool;
+    });
+
+    this.loadingPromises.set(name, promise);
+    const tool = await promise;
+    void this.sendToolListChanged();
+    return tool;
+  }
+
   async handleListPromptsRequest(): Promise<ListPromptsResult> {
     return { prompts: listPrompts() };
   }
@@ -203,20 +216,24 @@ export class BabServer {
     request: CallToolRequest,
   ): Promise<CallToolResult> {
     const { arguments: rawArguments = {}, name } = request.params;
-    const tool = this.toolRegistry.get(name);
-
     logger.info("Tool call received", { tool: name });
 
+    let tool = this.toolRegistry.get(name);
+
     if (!tool) {
-      logger.warn("Unknown tool requested", { tool: name });
-      return {
-        content: toTextContent({
-          type: "not_found",
-          message: `Unknown tool: ${name}`,
-          retryable: false,
-        }),
-        isError: true,
-      };
+      const loaded = await this.loadFromManifest(name);
+      if (!loaded) {
+        logger.warn("Unknown tool requested", { tool: name });
+        return {
+          content: toTextContent({
+            type: "not_found",
+            message: `Unknown tool: ${name}`,
+            retryable: false,
+          }),
+          isError: true,
+        };
+      }
+      tool = loaded;
     }
 
     const startedAt = Date.now();
@@ -310,6 +327,9 @@ export const CORE_TOOL_NAMES = [
   "version",
 ] as const;
 
+// Additional tools registered only in lazy mode
+export const LAZY_MODE_TOOL_NAMES = ["tools"] as const;
+
 export function parseDisabledTools(raw?: string): Set<string> {
   if (!raw) return new Set();
   return new Set(
@@ -334,32 +354,35 @@ export function registerCoreTools(
   };
 
   const disabled = parseDisabledTools(config.env.BAB_DISABLED_TOOLS);
+  const manifest = buildToolManifest(toolContext, providerRegistry, config);
 
-  const register = (tool: RegisteredTool): void => {
-    if (disabled.has(tool.name)) {
-      logger.info("Tool disabled via BAB_DISABLED_TOOLS", { tool: tool.name });
-      return;
+  // Filter disabled tools out of the manifest entirely
+  for (const name of disabled) {
+    if (manifest.has(name)) {
+      logger.info("Tool disabled via BAB_DISABLED_TOOLS", { tool: name });
+      manifest.delete(name);
     }
-    server.registerTool(tool);
-  };
+  }
 
-  register(createDelegateTool(config));
-  register(createAnalyzeTool(toolContext));
-  register(createChallengeTool());
-  register(createChatTool(toolContext));
-  register(createCodeReviewTool(toolContext));
-  register(createConsensusTool(toolContext));
-  register(createDebugTool(toolContext));
-  register(createDocgenTool(toolContext));
-  register(createPlannerTool(toolContext));
-  register(createPrecommitTool(toolContext));
-  register(createRefactorTool(toolContext));
-  register(createSecauditTool(toolContext));
-  register(createTestgenTool(toolContext));
-  register(createThinkDeepTool(toolContext));
-  register(createTracerTool(toolContext));
-  register(createListModelsTool(providerRegistry, config));
-  register(createVersionTool());
+  server.manifest = manifest;
+
+  if (config.lazyTools) {
+    // Lazy mode: register always-loaded tools + the tools meta-tool
+    for (const entry of manifest.values()) {
+      if (ALWAYS_LOADED_TOOLS.has(entry.name)) {
+        server.registerTool(entry.factory());
+      }
+    }
+    server.registerTool(createToolsTool(server));
+    logger.info("Lazy tool loading enabled", {
+      always_loaded: Array.from(ALWAYS_LOADED_TOOLS),
+    });
+  } else {
+    // Eager mode (default): register all tools from manifest
+    for (const entry of manifest.values()) {
+      server.registerTool(entry.factory());
+    }
+  }
 }
 
 function installSignalHandlers(server: BabServer): () => void {
