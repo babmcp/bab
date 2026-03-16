@@ -11,14 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add changelog script and generate CHANGELOG.md.
+- Support `BAB_DISABLED_TOOLS` env var to blocklist specific tools from registration.
 
 ### Changed
 
 - Auto-generate changelog on tag push, mark rc/beta as pre-release.
+- Note that MCP client env vars override the bab env file.
 
 ### Other
 
 - Strip Co-authored-by trailers from changelog output.
+- Rename changelog script to `changelog:update`.
+- Use only commit subject line in changelog entries.
 
 ## [0.1.2-rc2] - 2026-03-14
 
