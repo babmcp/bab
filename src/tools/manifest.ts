@@ -155,14 +155,17 @@ export function buildToolManifest(
     {
       name: "consensus",
       description:
-        "Builds multi-model consensus through systematic analysis and structured debate. Use for complex decisions, architectural choices, and technology evaluations.",
+        "Builds multi-model consensus through systematic analysis and structured debate. " +
+        "Call list_models first to see available SDK and plugin models. " +
+        "Use for complex decisions, architectural choices, and technology evaluations.",
       category: "planning",
       factory: () => createConsensusTool(toolContext),
     },
     {
       name: "list_models",
       description:
-        "List all configured AI models and plugins available to Bab.",
+        "List all available model IDs for use with other tools. " +
+        "Shows SDK models and plugin models. Call before using model-dependent tools.",
       category: "info",
       factory: () => createListModelsTool(providerRegistry, config),
     },

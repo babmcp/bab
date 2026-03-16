@@ -13,7 +13,10 @@ export function createListModelsTool(
 ): RegisteredTool {
   return {
     description:
-      "List models available from the configured AI providers and delegate plugins.",
+      "List all available model IDs for use with other tools. " +
+        "Shows SDK models (direct IDs like 'gpt-5.2', 'gemini-2.5-pro') and " +
+        "plugin models (use as 'pluginId/modelName', e.g. 'copilot/claude-sonnet-4'). " +
+        "Call this before using model-dependent tools like chat, consensus, or analyze.",
     execute: async () => {
       const providerModels = providerRegistry.listModels();
 
