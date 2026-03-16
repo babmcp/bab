@@ -209,6 +209,33 @@ Supported provider environment variables:
 - `CUSTOM_API_KEY`
 - `CUSTOM_API_URL`
 
+### Disabling tools
+
+Set `BAB_DISABLED_TOOLS` to a comma-separated list of tool names to prevent them from being registered:
+
+```bash
+# ~/.config/bab/env
+BAB_DISABLED_TOOLS=delegate,tracer
+```
+
+Or pass it via your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "bab": {
+      "command": "/absolute/path/to/bab",
+      "args": ["serve"],
+      "env": {
+        "BAB_DISABLED_TOOLS": "delegate,tracer"
+      }
+    }
+  }
+}
+```
+
+Tool names are case-insensitive. Disabled tools will not appear in `tools/list` responses.
+
 ## Delegate Plugins
 
 Each plugin lives under `~/.config/bab/plugins/<plugin-id>/` and is discovered by `manifest.yaml`.

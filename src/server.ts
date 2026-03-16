@@ -310,6 +310,16 @@ export const CORE_TOOL_NAMES = [
   "version",
 ] as const;
 
+export function parseDisabledTools(raw?: string): Set<string> {
+  if (!raw) return new Set();
+  return new Set(
+    raw
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
 export function registerCoreTools(
   server: BabServer,
   config: Awaited<ReturnType<typeof loadConfig>>,
@@ -323,23 +333,33 @@ export function registerCoreTools(
     providerRegistry,
   };
 
-  server.registerTool(createDelegateTool(config));
-  server.registerTool(createAnalyzeTool(toolContext));
-  server.registerTool(createChallengeTool());
-  server.registerTool(createChatTool(toolContext));
-  server.registerTool(createCodeReviewTool(toolContext));
-  server.registerTool(createConsensusTool(toolContext));
-  server.registerTool(createDebugTool(toolContext));
-  server.registerTool(createDocgenTool(toolContext));
-  server.registerTool(createPlannerTool(toolContext));
-  server.registerTool(createPrecommitTool(toolContext));
-  server.registerTool(createRefactorTool(toolContext));
-  server.registerTool(createSecauditTool(toolContext));
-  server.registerTool(createTestgenTool(toolContext));
-  server.registerTool(createThinkDeepTool(toolContext));
-  server.registerTool(createTracerTool(toolContext));
-  server.registerTool(createListModelsTool(providerRegistry, config));
-  server.registerTool(createVersionTool());
+  const disabled = parseDisabledTools(config.env.BAB_DISABLED_TOOLS);
+
+  const register = (tool: RegisteredTool): void => {
+    if (disabled.has(tool.name)) {
+      logger.info("Tool disabled via BAB_DISABLED_TOOLS", { tool: tool.name });
+      return;
+    }
+    server.registerTool(tool);
+  };
+
+  register(createDelegateTool(config));
+  register(createAnalyzeTool(toolContext));
+  register(createChallengeTool());
+  register(createChatTool(toolContext));
+  register(createCodeReviewTool(toolContext));
+  register(createConsensusTool(toolContext));
+  register(createDebugTool(toolContext));
+  register(createDocgenTool(toolContext));
+  register(createPlannerTool(toolContext));
+  register(createPrecommitTool(toolContext));
+  register(createRefactorTool(toolContext));
+  register(createSecauditTool(toolContext));
+  register(createTestgenTool(toolContext));
+  register(createThinkDeepTool(toolContext));
+  register(createTracerTool(toolContext));
+  register(createListModelsTool(providerRegistry, config));
+  register(createVersionTool());
 }
 
 function installSignalHandlers(server: BabServer): () => void {
