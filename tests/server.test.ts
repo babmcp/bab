@@ -6,7 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
 
-import { BabServer } from "../src/server";
+import { BabServer, parseDisabledTools } from "../src/server";
 
 type ToolContent = CallToolResult["content"][number];
 type TextBlock = Extract<ToolContent, { type: "text" }>;
@@ -156,5 +156,33 @@ describe("BabServer", () => {
       message: "Unknown tool: missing",
       retryable: false,
     });
+  });
+});
+
+describe("parseDisabledTools", () => {
+  test("returns empty set for undefined", () => {
+    expect(parseDisabledTools(undefined)).toEqual(new Set());
+  });
+
+  test("returns empty set for empty string", () => {
+    expect(parseDisabledTools("")).toEqual(new Set());
+  });
+
+  test("parses comma-separated tool names", () => {
+    expect(parseDisabledTools("delegate,chat")).toEqual(
+      new Set(["delegate", "chat"]),
+    );
+  });
+
+  test("trims whitespace and lowercases", () => {
+    expect(parseDisabledTools(" Delegate , CHAT ")).toEqual(
+      new Set(["delegate", "chat"]),
+    );
+  });
+
+  test("ignores empty segments from trailing commas", () => {
+    expect(parseDisabledTools("delegate,,chat,")).toEqual(
+      new Set(["delegate", "chat"]),
+    );
   });
 });
