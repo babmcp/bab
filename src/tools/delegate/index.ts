@@ -256,7 +256,13 @@ export function createDelegateTool(config: BabConfig): RegisteredTool {
       }
     },
     inputSchema: z.object({
-      cli_name: z.string().optional(),
+      cli_name: z
+        .string()
+        .optional()
+        .describe(
+          "Plugin ID to delegate to (e.g. 'claude', 'codex', 'copilot'). " +
+            "Required when multiple plugins installed, optional with exactly one.",
+        ),
       prompt: z.string().min(1),
       role: z.string().default("default"),
       working_directory: z.string().optional(),

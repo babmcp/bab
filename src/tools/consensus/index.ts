@@ -43,13 +43,27 @@ const ConsensusResponseSchema = z.object({
 
 const ConsensusInputSchema = z.object({
   continuation_id: z.string().min(1).optional(),
-  current_model_index: z.number().int().min(0).optional(),
+  current_model_index: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Index of next model to consult (0-based). Pass back from prior response to resume."),
   findings: z.string().min(1),
   images: z.array(z.string().min(1)).optional(),
-  model_responses: z.array(ConsensusResponseSchema).optional(),
-  models: z.array(ConsensusModelSchema).min(2),
+  model_responses: z
+    .array(ConsensusResponseSchema)
+    .optional()
+    .describe("Responses from prior call. Pass back to resume an interrupted round."),
+  models: z
+    .array(ConsensusModelSchema)
+    .min(2)
+    .describe("Models to consult (min 2). Each specifies a model ID and optional stance/temperature."),
   next_step_required: z.boolean(),
-  parallel: z.boolean().optional(),
+  parallel: z
+    .boolean()
+    .optional()
+    .describe("Consult all models concurrently. Default false (sequential, each sees prior responses)."),
   relevant_files: z.array(z.string().min(1)).optional(),
   step: z.string().min(1),
   step_number: z.number().int().min(1),

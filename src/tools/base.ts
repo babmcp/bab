@@ -62,8 +62,19 @@ export const ConfidenceSchema = z
   ])
   .optional();
 export const TemperatureSchema = z.number().min(0).max(1).optional();
-export const ContinuationIdSchema = z.string().min(1).optional();
-export const FilePathsSchema = z.array(z.string().min(1)).optional();
+export const ContinuationIdSchema = z
+  .string()
+  .min(1)
+  .optional()
+  .describe(
+    "ID from a previous tool response to continue that conversation thread. Omit to start new.",
+  );
+export const FilePathsSchema = z
+  .array(z.string().min(1))
+  .optional()
+  .describe(
+    "File paths (absolute or relative to cwd) to embed as context. May be skipped if outside allowed directories or exceeds token budget.",
+  );
 export const ImagesSchema = z.array(z.string().min(1)).optional();
 export const IssuesFoundSchema = z
   .array(
@@ -92,9 +103,11 @@ export const BaseWorkflowInputSchema = z.object({
         "or 'pluginId/modelName' for plugin models (e.g. 'copilot/claude-sonnet-4'). " +
         "Call list_models to see available options. Omit to auto-select the best available model.",
     ),
-  next_step_required: z.boolean(),
+  next_step_required: z
+    .boolean()
+    .describe("True if more steps are needed after this one. False on the final step."),
   relevant_context: z.array(z.string().min(1)).optional(),
-  relevant_files: z.array(z.string().min(1)).optional(),
+  relevant_files: FilePathsSchema,
   step: z.string().min(1),
   step_number: z.number().int().min(1),
   temperature: TemperatureSchema,
