@@ -35,8 +35,18 @@ M1 (MCP Server Core)
 ├── M14 (Codex Profiles) ── independent, any time
 │   └── T01 (ALLOWED_FLAGS) → T02 (test)
 │
-└── M15 (Plugin Tool Prompts) ── independent, any time
-    └── T01 (manifest + loader) → T02 (gateway) → T03 (tool wiring) → T04 (tests)
+├── M15 (Plugin Tool Prompts) ── independent, any time
+│   └── T01 (manifest + loader) → T02 (gateway) → T03 (tool wiring) → T04 (tests)
+│
+└── M16 (Lazy Tool Loading) ── independent, any time
+    ├── T01 (env config), T02 (manifest), T04 (listChanged) ── parallel, no deps
+    ├── T03 (refactor registerCoreTools) ── after T02
+    ├── T05 (loadFromManifest on server) ── after T03, T04
+    ├── T06 (auto-load on callTool) ── after T05
+    ├── T07 (tools meta-tool) ── after T05
+    ├── T08 (wire lazy mode) ── after T06, T07
+    ├── T09 (tests), T10 (concurrency test), T11 (benchmark) ── after T08
+    └── T12 (docs) ── after T08
 ```
 
 Notes:
@@ -45,6 +55,7 @@ Notes:
 - M12 and M13 depend on M11 (need published releases).
 - M13 brew fallback depends on M12 (tap must exist).
 - M14, M15 are fully independent — can be done in parallel with anything.
+- M16 is fully independent — can be done in parallel with anything.
 
 ---
 
@@ -67,6 +78,7 @@ Notes:
 | M13 | Install Script | in-progress | 2/3 | — | — |
 | M14 | Codex Profiles | completed | 2/2 | — | — |
 | M15 | Plugin Tool Prompts | completed | 4/4 | — | — |
+| M16 | Lazy Tool Loading | completed | 12/12 | — | — |
 
 ---
 
@@ -217,3 +229,22 @@ Plan: `plans/20260314_plugin_tool_prompts.md`
 | M15-T02 | ModelGateway toolName + prompt resolution | M15-T01 | completed |
 | M15-T03 | Wire toolName through tools | M15-T02 | completed |
 | M15-T04 | Tests | M15-T03 | completed |
+
+### M16 — Lazy Tool Loading
+
+Plan: `plans/20260316_lazy_tool_loading.md`
+
+| Task | Description | Deps | Status |
+|------|-------------|------|--------|
+| M16-T01 | Add BAB_LAZY_TOOLS to env schema | — | completed |
+| M16-T02 | Create tool manifest module | — | completed |
+| M16-T03 | Refactor registerCoreTools to use manifest | M16-T02 | completed |
+| M16-T04 | Add listChanged capability to BabServer | — | completed |
+| M16-T05 | Add manifest + loadFromManifest to BabServer | M16-T03, M16-T04 | completed |
+| M16-T06 | Auto-load on callTool | M16-T05 | completed |
+| M16-T07 | Create tools meta-tool | M16-T05 | completed |
+| M16-T08 | Wire lazy mode in registerCoreTools | M16-T06, M16-T07 | completed |
+| M16-T09 | Unit + integration tests | M16-T08 | completed |
+| M16-T10 | Concurrent auto-load test | M16-T09 | completed |
+| M16-T11 | Context-size benchmark test | M16-T09 | completed |
+| M16-T12 | Update CORE_TOOL_NAMES + docs | M16-T08 | completed |
