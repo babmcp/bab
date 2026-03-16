@@ -50,7 +50,8 @@ export class ModelGateway {
     if (slashIndex === -1) {
       throw new Error(
         `Model "${modelId}" not found in SDK registry. ` +
-          `For plugin models, use "pluginId/modelName" format (e.g. "copilot/gemini-2.5-pro").`,
+          `Call list_models to see available SDK models. ` +
+          `For plugin models, use "pluginId/modelName" format (e.g. "copilot/claude-sonnet-4").`,
       );
     }
 

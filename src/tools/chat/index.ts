@@ -18,7 +18,15 @@ const ChatInputSchema = z.object({
   absolute_file_paths: FilePathsSchema,
   continuation_id: ContinuationIdSchema,
   images: ImagesSchema,
-  model: z.string().min(1).optional(),
+  model: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Model ID. Use an SDK model ID (e.g. 'gemini-2.5-pro', 'gpt-5.2', 'claude-sonnet-4-20250514') " +
+        "or 'pluginId/modelName' for plugin models (e.g. 'copilot/claude-sonnet-4'). " +
+        "Call list_models to see available options. Omit to auto-select the best available model.",
+    ),
   prompt: z.string().min(1),
   temperature: TemperatureSchema,
   thinking_mode: ThinkingModeSchema,

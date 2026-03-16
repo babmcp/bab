@@ -18,7 +18,14 @@ import {
 } from "../base";
 
 const ConsensusModelSchema = z.object({
-  model: z.string().min(1),
+  model: z
+    .string()
+    .min(1)
+    .describe(
+      "Model ID. Use an SDK model ID (e.g. 'gemini-2.5-pro', 'gpt-5.2') " +
+        "or 'pluginId/modelName' for plugin models (e.g. 'copilot/claude-sonnet-4'). " +
+        "Call list_models to see available options.",
+    ),
   stance: z.enum(["for", "against", "neutral"]).optional(),
   stance_prompt: z.string().min(1).optional(),
   temperature: z.number().min(0).max(1).optional(),
@@ -113,7 +120,9 @@ export function createConsensusTool(context: ToolContext): RegisteredTool {
   return {
     description:
       "Builds multi-model consensus through systematic analysis and structured debate. " +
-      "Supports SDK models (by ID or alias) and plugin models (via 'pluginId/modelName' format, e.g. 'copilot/gemini-2.5-pro' or 'opencode/minimax-m2.5'). " +
+      "Each model entry accepts an SDK model ID (e.g. 'gpt-5.2', 'gemini-2.5-pro', 'claude-sonnet-4-20250514') " +
+      "or a plugin model via 'pluginId/modelName' (e.g. 'copilot/claude-sonnet-4'). " +
+      "Call list_models to see available SDK and plugin models. " +
       "Per-model temperature and thinking_mode (minimal/low/medium/high/max) can be set independently. " +
       "Set parallel:true to consult all models concurrently instead of step-by-step. " +
       "Use for complex decisions, architectural choices, feature proposals, and technology evaluations.",

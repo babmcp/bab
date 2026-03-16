@@ -83,7 +83,15 @@ export const BaseWorkflowInputSchema = z.object({
   findings: z.string().min(1),
   images: ImagesSchema,
   issues_found: IssuesFoundSchema,
-  model: z.string().min(1).optional(),
+  model: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Model ID. Use an SDK model ID (e.g. 'gemini-2.5-pro', 'gpt-5.2', 'claude-sonnet-4-20250514') " +
+        "or 'pluginId/modelName' for plugin models (e.g. 'copilot/claude-sonnet-4'). " +
+        "Call list_models to see available options. Omit to auto-select the best available model.",
+    ),
   next_step_required: z.boolean(),
   relevant_context: z.array(z.string().min(1)).optional(),
   relevant_files: z.array(z.string().min(1)).optional(),
