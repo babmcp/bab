@@ -418,28 +418,29 @@ describe("selectModel", () => {
 });
 
 describe("embedFiles", () => {
-  test("throws for non-existent files in allowed path", async () => {
+  test("skips non-existent files in allowed path", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
     const model = selectModel(registry);
     const nonExistent = join(process.cwd(), "nonexistent-bab-test-file.ts");
 
-    await expect(
-      embedFiles([nonExistent], model),
-    ).rejects.toThrow("Unable to read file path");
+    const result = await embedFiles([nonExistent], model);
+    expect(result.embedded_files).toHaveLength(0);
+    expect(result.skipped_files).toHaveLength(1);
+    expect(result.skipped_files[0]?.reason).toBe("file_not_found");
   });
 
-  test("resolves relative paths against cwd", async () => {
+  test("skips non-existent relative paths", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
     const model = selectModel(registry);
 
-    // relative path to a non-existent file — should resolve to cwd and then fail on stat
-    await expect(
-      embedFiles(["relative/nonexistent.ts"], model),
-    ).rejects.toThrow("Unable to read file path");
+    const result = await embedFiles(["relative/nonexistent.ts"], model);
+    expect(result.embedded_files).toHaveLength(0);
+    expect(result.skipped_files).toHaveLength(1);
+    expect(result.skipped_files[0]?.reason).toBe("file_not_found");
   });
 
   test("skips directories with not_a_file reason", async () => {

@@ -264,7 +264,13 @@ export function createDelegateTool(config: BabConfig): RegisteredTool {
             "Required when multiple plugins installed, optional with exactly one.",
         ),
       prompt: z.string().min(1),
-      role: z.string().default("default"),
+      role: z
+        .string()
+        .default("default")
+        .describe(
+          "Prompt role within the selected plugin (e.g. 'default', 'architect'). " +
+            "This does NOT select the plugin — use cli_name for that.",
+        ),
       working_directory: z.string().optional(),
     }),
     name: "delegate",
