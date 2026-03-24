@@ -21,12 +21,14 @@ import { VERSION } from "../src/version";
 function makeTempConfig(baseDir: string): BabConfig {
   return {
     env: {},
+    lazyTools: false,
     paths: {
       baseDir,
       envFile: join(baseDir, "env"),
       pluginsDir: join(baseDir, "plugins"),
       promptsDir: join(baseDir, "prompts"),
     },
+    persistence: { enabled: false, enabledTools: new Set(), disabledTools: new Set() },
   };
 }
 

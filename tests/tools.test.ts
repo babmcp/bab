@@ -17,12 +17,14 @@ function createConfig(
 ): BabConfig {
   return {
     env,
+    lazyTools: false,
     paths: {
       baseDir: join(pluginsDir, ".."),
       envFile: join(pluginsDir, "..", "env"),
       pluginsDir,
       promptsDir: join(pluginsDir, "..", "prompts"),
     },
+    persistence: { enabled: false, enabledTools: new Set(), disabledTools: new Set() },
   };
 }
 

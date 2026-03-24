@@ -28,10 +28,13 @@ export type ToolCategory =
   | "planning"
   | "review";
 
+export type ToolPersistTier = "default" | "optional" | "never";
+
 export interface ToolManifestEntry {
   name: string;
   description: string;
   category: ToolCategory;
+  persist: ToolPersistTier;
   factory: () => RegisteredTool;
 }
 
@@ -53,12 +56,14 @@ export function buildToolManifest(
       name: "version",
       description: "Return the current Bab and runtime version information.",
       category: "info",
+      persist: "never",
       factory: () => createVersionTool(),
     },
     {
       name: "delegate",
       description: "Run a prompt through a configured delegate CLI plugin.",
       category: "delegation",
+      persist: "never",
       factory: () => createDelegateTool(config),
     },
     {
@@ -66,6 +71,7 @@ export function buildToolManifest(
       description:
         "Direct model query with conversation threading. Use for focused Q&A, explanations, translations, and tasks that don't require multi-step workflows.",
       category: "delegation",
+      persist: "optional",
       factory: () => createChatTool(toolContext),
     },
     {
@@ -73,6 +79,7 @@ export function buildToolManifest(
       description:
         "Performs comprehensive code analysis with systematic investigation and expert validation. Use for architecture, performance, maintainability, and pattern analysis.",
       category: "analysis",
+      persist: "default",
       factory: () => createAnalyzeTool(toolContext),
     },
     {
@@ -80,6 +87,7 @@ export function buildToolManifest(
       description:
         "Systematic debugging workflow with hypothesis formation and validation. Use for tracing bugs, understanding failures, and root cause analysis.",
       category: "analysis",
+      persist: "default",
       factory: () => createDebugTool(toolContext),
     },
     {
@@ -87,6 +95,7 @@ export function buildToolManifest(
       description:
         "Trace code execution paths and data flows through a codebase. Use for understanding how data moves between components.",
       category: "analysis",
+      persist: "default",
       factory: () => createTracerTool(toolContext),
     },
     {
@@ -94,6 +103,7 @@ export function buildToolManifest(
       description:
         "Security audit workflow for identifying vulnerabilities, misconfigurations, and security risks in code.",
       category: "analysis",
+      persist: "default",
       factory: () => createSecauditTool(toolContext),
     },
     {
@@ -101,6 +111,7 @@ export function buildToolManifest(
       description:
         "Generate comprehensive test suites with edge cases and integration tests for existing code.",
       category: "generation",
+      persist: "optional",
       factory: () => createTestgenTool(toolContext),
     },
     {
@@ -108,6 +119,7 @@ export function buildToolManifest(
       description:
         "Generate technical documentation, API references, and code comments for a codebase.",
       category: "generation",
+      persist: "optional",
       factory: () => createDocgenTool(toolContext),
     },
     {
@@ -115,6 +127,7 @@ export function buildToolManifest(
       description:
         "Systematic code refactoring with safety analysis. Use for improving code structure, reducing complexity, and applying design patterns.",
       category: "generation",
+      persist: "default",
       factory: () => createRefactorTool(toolContext),
     },
     {
@@ -122,6 +135,7 @@ export function buildToolManifest(
       description:
         "Structured code review with multi-perspective analysis. Reviews for correctness, security, performance, and maintainability.",
       category: "review",
+      persist: "default",
       factory: () => createCodeReviewTool(toolContext),
     },
     {
@@ -129,6 +143,7 @@ export function buildToolManifest(
       description:
         "Pre-commit review that checks staged changes for issues before committing. Validates correctness, tests, and code quality.",
       category: "review",
+      persist: "optional",
       factory: () => createPrecommitTool(toolContext),
     },
     {
@@ -136,6 +151,7 @@ export function buildToolManifest(
       description:
         "Challenge assumptions and stress-test plans or decisions by generating critical counter-arguments.",
       category: "review",
+      persist: "optional",
       factory: () => createChallengeTool(),
     },
     {
@@ -143,6 +159,7 @@ export function buildToolManifest(
       description:
         "Break down complex tasks into structured, actionable implementation plans with dependency ordering.",
       category: "planning",
+      persist: "default",
       factory: () => createPlannerTool(toolContext),
     },
     {
@@ -150,6 +167,7 @@ export function buildToolManifest(
       description:
         "Extended multi-step reasoning for complex problems. Use for architectural decisions, trade-off analysis, and difficult design questions.",
       category: "planning",
+      persist: "default",
       factory: () => createThinkDeepTool(toolContext),
     },
     {
@@ -159,6 +177,7 @@ export function buildToolManifest(
         "Call list_models first to see available SDK and plugin models. " +
         "Use for complex decisions, architectural choices, and technology evaluations.",
       category: "planning",
+      persist: "default",
       factory: () => createConsensusTool(toolContext),
     },
     {
@@ -167,6 +186,7 @@ export function buildToolManifest(
         "List all available model IDs for use with other tools. " +
         "Shows SDK models and plugin models. Call before using model-dependent tools.",
       category: "info",
+      persist: "never",
       factory: () => createListModelsTool(providerRegistry, config),
     },
   ];

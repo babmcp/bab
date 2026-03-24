@@ -14,10 +14,17 @@ export interface BabConfigPaths {
   promptsDir: string;
 }
 
+export interface BabPersistenceConfig {
+  enabled: boolean;
+  enabledTools: Set<string>;
+  disabledTools: Set<string>;
+}
+
 export interface BabConfig {
   env: Record<string, string>;
   lazyTools: boolean;
   paths: BabConfigPaths;
+  persistence: BabPersistenceConfig;
 }
 
 export interface ParseEnvFileOptions {
@@ -128,9 +135,24 @@ export async function loadConfig(homeDirectory?: string): Promise<BabConfig> {
     ...processEnv,
   };
 
+  const persistEnabled = env.BAB_PERSIST?.toLowerCase() !== "false";
+  const enabledTools = new Set(
+    env.BAB_PERSIST_TOOLS ? env.BAB_PERSIST_TOOLS.split(",").map((s) => s.trim()).filter(Boolean) : [],
+  );
+  const disabledTools = new Set(
+    env.BAB_DISABLED_PERSIST_TOOLS
+      ? env.BAB_DISABLED_PERSIST_TOOLS.split(",").map((s) => s.trim()).filter(Boolean)
+      : [],
+  );
+
   return {
     env,
     lazyTools: env.BAB_LAZY_TOOLS === "1" || env.BAB_LAZY_TOOLS === "true",
     paths,
+    persistence: {
+      enabled: persistEnabled,
+      enabledTools,
+      disabledTools,
+    },
   };
 }
