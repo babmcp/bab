@@ -236,10 +236,12 @@ export async function embedFiles(
     try {
       resolvedPath = await realpath(filePath);
       stats = await stat(resolvedPath);
-    } catch (error) {
-      throw new Error(
-        `Unable to read file path: ${filePath} (${error instanceof Error ? error.message : String(error)})`,
-      );
+    } catch {
+      skippedFiles.push({
+        path: filePath,
+        reason: "file_not_found",
+      });
+      continue;
     }
 
     if (!isAllowedPath(resolvedPath)) {
