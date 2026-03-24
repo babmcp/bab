@@ -118,6 +118,29 @@ const STATIC_MODEL_REGISTRY: ReadonlyArray<ModelInfo> = [
   },
 ] as const;
 
+const MODEL_PREFIX_TO_PROVIDER: ReadonlyArray<[RegExp, ProviderId]> = [
+  [/^claude-/, "anthropic"],
+  [/^gpt-/, "openai"],
+  [/^o\d+-/, "openai"],
+  [/^gemini-/, "google"],
+];
+
+function inferProvider(modelId: string): ProviderId | undefined {
+  for (const [pattern, provider] of MODEL_PREFIX_TO_PROVIDER) {
+    if (pattern.test(modelId)) return provider;
+  }
+  return undefined;
+}
+
+const SYNTHETIC_DEFAULTS: ModelInfo["capabilities"] = {
+  context_window: 128_000,
+  score: 50,
+  supports_thinking: false,
+  supports_vision: false,
+  supports_images: false,
+  aliases: [],
+};
+
 const PROVIDER_ENV_CONFIG = {
   anthropic: { apiKey: "ANTHROPIC_API_KEY" },
   custom: { apiKey: "CUSTOM_API_KEY", baseUrl: "CUSTOM_API_URL" },
@@ -150,9 +173,25 @@ export class ProviderRegistry {
     );
     if (exactMatch) return exactMatch;
 
-    return STATIC_MODEL_REGISTRY.find(
+    const aliasMatch = STATIC_MODEL_REGISTRY.find(
       (model) => model.capabilities.aliases.includes(modelIdOrAlias),
     );
+    if (aliasMatch) return aliasMatch;
+
+    // Inferred models are config-gated here (unlike static models) because
+    // ModelGateway uses getModelInfo() to decide SDK vs delegate routing -
+    // returning an unconfigured inferred model would prevent delegate fallback.
+    const inferred = inferProvider(modelIdOrAlias);
+    if (inferred && this.isProviderConfigured(inferred)) {
+      return {
+        id: modelIdOrAlias,
+        provider: inferred,
+        display_name: modelIdOrAlias,
+        capabilities: { ...SYNTHETIC_DEFAULTS },
+      };
+    }
+
+    return undefined;
   }
 
   isProviderConfigured(providerId: ProviderId): boolean {
