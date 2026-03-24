@@ -378,40 +378,40 @@ describe("workflow framework", () => {
 });
 
 describe("selectModel", () => {
-  test("falls back to best available when requested model provider is not configured", () => {
+  test("falls back to best available when requested model provider is not configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ GOOGLE_API_KEY: "key" }),
     });
 
-    const model = selectModel(registry, "gpt-5.2");
+    const model = await selectModel(registry, "gpt-5.2");
     expect(model.provider).toBe("google");
   });
 
-  test("falls back to best available when requested model does not exist", () => {
+  test("falls back to best available when requested model does not exist", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
 
-    const model = selectModel(registry, "nonexistent-model");
+    const model = await selectModel(registry, "nonexistent-model");
     expect(model.provider).toBe("openai");
   });
 
-  test("throws when no providers are configured", () => {
+  test("throws when no providers are configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig(),
     });
 
-    expect(() => selectModel(registry)).toThrow(
+    await expect(selectModel(registry)).rejects.toThrow(
       "No configured AI models are available",
     );
   });
 
-  test("returns the highest-scoring model when none is requested", () => {
+  test("returns the highest-scoring model when none is requested", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
 
-    const model = selectModel(registry);
+    const model = await selectModel(registry);
 
     expect(model.provider).toBe("openai");
   });
@@ -422,7 +422,7 @@ describe("embedFiles", () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
-    const model = selectModel(registry);
+    const model = await selectModel(registry);
     const nonExistent = join(process.cwd(), "nonexistent-bab-test-file.ts");
 
     const result = await embedFiles([nonExistent], model);
@@ -435,7 +435,7 @@ describe("embedFiles", () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
-    const model = selectModel(registry);
+    const model = await selectModel(registry);
 
     const result = await embedFiles(["relative/nonexistent.ts"], model);
     expect(result.embedded_files).toHaveLength(0);
@@ -447,7 +447,7 @@ describe("embedFiles", () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
-    const model = selectModel(registry);
+    const model = await selectModel(registry);
     const result = await embedFiles([process.cwd()], model);
 
     expect(result.embedded_files).toHaveLength(0);
@@ -465,7 +465,7 @@ describe("embedFiles", () => {
       const registry = new ProviderRegistry({
         config: createConfig({ OPENAI_API_KEY: "key" }),
       });
-      const model = selectModel(registry);
+      const model = await selectModel(registry);
       const result = await embedFiles(
         [filePath, filePath, filePath],
         model,
@@ -482,7 +482,7 @@ describe("embedFiles", () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
-    const model = selectModel(registry);
+    const model = await selectModel(registry);
     const result = await embedFiles(undefined, model);
 
     expect(result.embedded_files).toHaveLength(0);
@@ -493,7 +493,7 @@ describe("embedFiles", () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
-    const model = selectModel(registry);
+    const model = await selectModel(registry);
     const home = require("node:os").homedir();
     const blockedFile = join(home, "bab-test-blocked.txt");
 

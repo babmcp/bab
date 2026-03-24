@@ -143,7 +143,7 @@ export function createConsensusTool(context: ToolContext): RegisteredTool {
     execute: async (rawArgs): Promise<ToolExecutionResult> => {
       try {
         const request = ConsensusInputSchema.parse(rawArgs);
-        const synthesisModel = selectModel(context.providerRegistry);
+        const synthesisModel = await selectModel(context.providerRegistry);
         const conversation = await prepareConversation(
           context.conversationStore,
           request.continuation_id,

@@ -74,7 +74,7 @@ export function createSimpleTool<
     execute: async (rawArgs) => {
       try {
         const request = inputSchema.parse(rawArgs) as TRequest;
-        const selectedModel = selectModel(
+        const selectedModel = await selectModel(
           context.providerRegistry,
           request.model?.includes("/") ? undefined : request.model,
         );

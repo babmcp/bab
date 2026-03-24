@@ -11,6 +11,7 @@ import {
 import type { BabConfig } from "../config";
 import type { ModelInfo, ProviderId } from "../types";
 import { estimateTokenCount } from "../utils/tokens";
+import { discoverModels, getAllCachedModels } from "./model-discovery";
 
 type GenerateTextFn = typeof aiGenerateText;
 
@@ -162,12 +163,21 @@ export class ProviderRegistry {
     this.generateTextFn = generateTextFn;
   }
 
-  listModels(): ModelInfo[] {
-    return STATIC_MODEL_REGISTRY.filter((model) => this.isProviderConfigured(model.provider));
+  async listModels(): Promise<ModelInfo[]> {
+    // Trigger discovery for all configured providers (uses cache if fresh)
+    await Promise.all(this.configuredProviders().map((pid) => this.discoverProviderModels(pid)));
+    const discovered = getAllCachedModels();
+    // Static takes priority — deduplicate by id
+    const merged = new Map<string, ModelInfo>();
+    for (const m of discovered) merged.set(m.id, m);
+    for (const m of STATIC_MODEL_REGISTRY) merged.set(m.id, m);
+    return Array.from(merged.values()).filter((m) =>
+      this.isProviderConfigured(m.provider),
+    );
   }
 
-  getModelInfo(modelIdOrAlias: string): ModelInfo | undefined {
-    // Prefer exact id match over alias match to avoid cross-provider collisions
+  async getModelInfo(modelIdOrAlias: string): Promise<ModelInfo | undefined> {
+    // 1. Static registry — exact id, then alias
     const exactMatch = STATIC_MODEL_REGISTRY.find(
       (model) => model.id === modelIdOrAlias,
     );
@@ -178,8 +188,18 @@ export class ProviderRegistry {
     );
     if (aliasMatch) return aliasMatch;
 
+    // 2. Discovered models — fetch lazily per configured provider
+    for (const pid of this.configuredProviders()) {
+      const models = await this.discoverProviderModels(pid);
+      const found = models.find(
+        (m) => m.id === modelIdOrAlias || m.capabilities.aliases.includes(modelIdOrAlias),
+      );
+      if (found) return found;
+    }
+
+    // 3. Regex inference fallback (offline safety net)
     // Inferred models are config-gated here (unlike static models) because
-    // ModelGateway uses getModelInfo() to decide SDK vs delegate routing -
+    // ModelGateway uses getModelInfo() to decide SDK vs delegate routing —
     // returning an unconfigured inferred model would prevent delegate fallback.
     const inferred = inferProvider(modelIdOrAlias);
     if (inferred && this.isProviderConfigured(inferred)) {
@@ -208,13 +228,27 @@ export class ProviderRegistry {
     return Boolean(providerConfig.apiKey && this.config.env[providerConfig.apiKey]);
   }
 
+  private configuredProviders(): ProviderId[] {
+    return (Object.keys(PROVIDER_ENV_CONFIG) as ProviderId[]).filter((pid) =>
+      this.isProviderConfigured(pid),
+    );
+  }
+
+  private async discoverProviderModels(pid: ProviderId): Promise<ModelInfo[]> {
+    const cfg = PROVIDER_ENV_CONFIG[pid];
+    const apiKey = cfg.apiKey ? (this.config.env[cfg.apiKey] ?? "") : "";
+    const baseUrl =
+      "baseUrl" in cfg && cfg.baseUrl ? this.config.env[cfg.baseUrl] : undefined;
+    return discoverModels(pid, apiKey, baseUrl);
+  }
+
   async generateText(
     modelIdOrAlias: string,
     prompt: string,
     systemPrompt?: string,
     options: GenerateTextOptions = {},
   ): Promise<GenerateTextResult> {
-    const modelInfo = this.getModelInfo(modelIdOrAlias);
+    const modelInfo = await this.getModelInfo(modelIdOrAlias);
 
     if (!modelInfo) {
       throw new Error(`Unknown model: ${modelIdOrAlias}`);
