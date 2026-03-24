@@ -35,7 +35,7 @@ export class ModelGateway {
     options: ModelQueryOptions = {},
   ): Promise<GenerateTextResult> {
     // Try SDK registry first
-    const modelInfo = this.providerRegistry.getModelInfo(modelId);
+    const modelInfo = await this.providerRegistry.getModelInfo(modelId);
 
     if (modelInfo) {
       return this.providerRegistry.generateText(modelId, prompt, systemPrompt, {
@@ -48,8 +48,7 @@ export class ModelGateway {
     const slashIndex = modelId.indexOf("/");
 
     if (slashIndex === -1) {
-      const available = this.providerRegistry
-        .listModels()
+      const available = (await this.providerRegistry.listModels())
         .map((m) => m.id)
         .join(", ");
       throw new Error(

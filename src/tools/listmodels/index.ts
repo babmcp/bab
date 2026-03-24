@@ -18,7 +18,7 @@ export function createListModelsTool(
         "plugin models (use as 'pluginId/modelName', e.g. 'copilot/claude-sonnet-4'). " +
         "Call this before using model-dependent tools like chat, consensus, or analyze.",
     execute: async () => {
-      const providerModels = providerRegistry.listModels();
+      const providerModels = await providerRegistry.listModels();
 
       const bundledRoot = await getBundledPluginsRoot();
       const [bundled, installed] = await Promise.all([

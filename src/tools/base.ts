@@ -184,12 +184,12 @@ export function createSuccessToolResult(value: ToolOutput): ToolExecutionResult 
   };
 }
 
-export function selectModel(
+export async function selectModel(
   providerRegistry: ProviderRegistry,
   requestedModel?: string,
-): ModelInfo {
+): Promise<ModelInfo> {
   if (requestedModel) {
-    const exactModel = providerRegistry.getModelInfo(requestedModel);
+    const exactModel = await providerRegistry.getModelInfo(requestedModel);
 
     if (exactModel && providerRegistry.isProviderConfigured(exactModel.provider)) {
       return exactModel;
@@ -202,9 +202,9 @@ export function selectModel(
     // Fall through to auto-select the best available model
   }
 
-  const availableModels = providerRegistry
-    .listModels()
-    .sort((left, right) => right.capabilities.score - left.capabilities.score);
+  const availableModels = (await providerRegistry.listModels()).sort(
+    (left, right) => right.capabilities.score - left.capabilities.score,
+  );
 
   if (availableModels.length === 0) {
     throw new Error("No configured AI models are available");

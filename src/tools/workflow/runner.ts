@@ -88,7 +88,7 @@ export class WorkflowRunner<
   ): Promise<ToolExecutionResult> {
     try {
       const parsedRequest = this.config.inputSchema.parse(rawArgs) as TRequest;
-      const selectedModel = selectModel(
+      const selectedModel = await selectModel(
         this.config.context.providerRegistry,
         parsedRequest.model?.includes("/") ? undefined : parsedRequest.model,
       );

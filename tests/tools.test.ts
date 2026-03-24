@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { BabConfig } from "../src/config";
 import { invalidatePluginCache } from "../src/delegate/plugin-cache";
+import { clearDiscoveryCache } from "../src/providers/model-discovery";
 import { createProviderRegistry } from "../src/providers/registry";
 import { createDelegateTool } from "../src/tools/delegate";
 import { createListModelsTool } from "../src/tools/listmodels";
@@ -26,6 +27,9 @@ function createConfig(
 }
 
 describe("utility tools", () => {
+  beforeEach(() => clearDiscoveryCache());
+  afterEach(() => clearDiscoveryCache());
+
   test("listmodels returns env-gated static models", async () => {
     const pluginsDir = await mkdtemp(join(tmpdir(), "bab-tools-"));
     const config = createConfig(pluginsDir, {

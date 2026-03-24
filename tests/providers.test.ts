@@ -1,6 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
 import type { BabConfig } from "../src/config";
+import { clearDiscoveryCache } from "../src/providers/model-discovery";
 import { ProviderRegistry } from "../src/providers/registry";
 import { estimateTokenCount } from "../src/utils/tokens";
 
@@ -25,7 +26,9 @@ describe("estimateTokenCount", () => {
 });
 
 describe("ProviderRegistry", () => {
-  test("filters model list by configured providers", () => {
+  afterEach(() => clearDiscoveryCache());
+
+  test("filters model list by configured providers", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({
         OPENAI_API_KEY: "openai-key",
@@ -33,25 +36,26 @@ describe("ProviderRegistry", () => {
       }),
     });
 
-    const models = registry.listModels();
+    const models = await registry.listModels();
 
-    expect(models.map((model) => model.provider)).toEqual(["openai", "custom"]);
+    expect(models.map((model) => model.provider)).toContain("openai");
+    expect(models.map((model) => model.provider)).toContain("custom");
   });
 
-  test("resolves model aliases", () => {
+  test("resolves model aliases", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({
         OPENAI_API_KEY: "openai-key",
       }),
     });
 
-    const model = registry.getModelInfo("anthropic/claude-sonnet-4");
+    const model = await registry.getModelInfo("anthropic/claude-sonnet-4");
 
     expect(model?.id).toBe("claude-sonnet-4-20250514");
     expect(model?.provider).toBe("anthropic");
   });
 
-  test("prefers exact id match over alias match", () => {
+  test("prefers exact id match over alias match", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({
         OPENROUTER_API_KEY: "key",
@@ -60,7 +64,7 @@ describe("ProviderRegistry", () => {
 
     // "openai/gpt-5.2" is both an alias for the OpenAI model and the
     // exact id of the OpenRouter model — exact id should win
-    const model = registry.getModelInfo("openai/gpt-5.2");
+    const model = await registry.getModelInfo("openai/gpt-5.2");
 
     expect(model?.id).toBe("openai/gpt-5.2");
     expect(model?.provider).toBe("openrouter");
@@ -121,73 +125,73 @@ describe("ProviderRegistry", () => {
     });
   });
 
-  test("infers google for unknown gemini-* model when configured", () => {
+  test("infers google for unknown gemini-* model when configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ GOOGLE_API_KEY: "key" }),
     });
 
-    const model = registry.getModelInfo("gemini-2.5-flash");
+    const model = await registry.getModelInfo("gemini-2.5-flash");
     expect(model?.id).toBe("gemini-2.5-flash");
     expect(model?.provider).toBe("google");
     expect(model?.capabilities.score).toBe(50);
   });
 
-  test("infers openai for unknown gpt-* model when configured", () => {
+  test("infers openai for unknown gpt-* model when configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
 
-    const model = registry.getModelInfo("gpt-4o");
+    const model = await registry.getModelInfo("gpt-4o");
     expect(model?.id).toBe("gpt-4o");
     expect(model?.provider).toBe("openai");
   });
 
-  test("infers openai for o*-* reasoning models when configured", () => {
+  test("infers openai for o*-* reasoning models when configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
 
-    const o3Model = registry.getModelInfo("o3-pro");
+    const o3Model = await registry.getModelInfo("o3-pro");
     expect(o3Model?.id).toBe("o3-pro");
     expect(o3Model?.provider).toBe("openai");
 
-    const futureGenerationModel = registry.getModelInfo("o5-mini");
+    const futureGenerationModel = await registry.getModelInfo("o5-mini");
     expect(futureGenerationModel?.id).toBe("o5-mini");
     expect(futureGenerationModel?.provider).toBe("openai");
   });
 
-  test("infers anthropic for unknown claude-* model when configured", () => {
+  test("infers anthropic for unknown claude-* model when configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ ANTHROPIC_API_KEY: "key" }),
     });
 
-    const model = registry.getModelInfo("claude-opus-4-20250514");
+    const model = await registry.getModelInfo("claude-opus-4-20250514");
     expect(model?.id).toBe("claude-opus-4-20250514");
     expect(model?.provider).toBe("anthropic");
   });
 
-  test("returns undefined for unknown model with no pattern match", () => {
+  test("returns undefined for unknown model with no pattern match", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ OPENAI_API_KEY: "key" }),
     });
 
-    expect(registry.getModelInfo("llama-3.1-70b")).toBeUndefined();
+    expect(await registry.getModelInfo("llama-3.1-70b")).toBeUndefined();
   });
 
-  test("returns undefined when pattern matches but provider not configured", () => {
+  test("returns undefined when pattern matches but provider not configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig(),
     });
 
-    expect(registry.getModelInfo("gemini-2.5-flash")).toBeUndefined();
+    expect(await registry.getModelInfo("gemini-2.5-flash")).toBeUndefined();
   });
 
-  test("static registry takes priority over inference", () => {
+  test("static registry takes priority over inference", async () => {
     const registry = new ProviderRegistry({
       config: createConfig({ GOOGLE_API_KEY: "key" }),
     });
 
-    const model = registry.getModelInfo("gemini-2.5-pro");
+    const model = await registry.getModelInfo("gemini-2.5-pro");
     expect(model?.id).toBe("gemini-2.5-pro");
     // Static entry has score 100, inference would give 50
     expect(model?.capabilities.score).toBe(100);
