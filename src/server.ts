@@ -16,8 +16,10 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
 
+import type { BabConfig } from "./config";
 import { loadConfig } from "./config";
 import { ConversationStore } from "./memory/conversations";
+import { persistReport } from "./memory/persistence";
 import { createModelGateway } from "./providers/model-gateway";
 import { createProviderRegistry } from "./providers/registry";
 import { generateSkillContent } from "./skills/generator";
@@ -115,10 +117,23 @@ export class BabServer {
   readonly toolRegistry = new Map<string, RegisteredTool>();
   readonly protocolServer: Server;
   manifest = new Map<string, ToolManifestEntry>();
+  config: BabConfig | undefined;
 
   private isConnected = false;
   private isClosing = false;
   private readonly loadingPromises = new Map<string, Promise<RegisteredTool>>();
+
+  shouldPersistTool(toolName: string): boolean {
+    if (!this.config?.persistence.enabled) return false;
+    const entry = this.manifest.get(toolName);
+    if (!entry) return false;
+    if (entry.persist === "never") return false;
+    if (entry.persist === "default") {
+      return !this.config.persistence.disabledTools.has(toolName);
+    }
+    // optional
+    return this.config.persistence.enabledTools.has(toolName);
+  }
 
   constructor() {
     this.protocolServer = new Server(SERVER_INFO, {
@@ -251,6 +266,22 @@ export class BabServer {
           tool: name,
           duration_ms: durationMs,
         });
+
+        if (this.shouldPersistTool(name)) {
+          const promptText = typeof rawArguments.prompt === "string" ? rawArguments.prompt : "";
+          const continuationId =
+            typeof rawArguments.continuation_id === "string"
+              ? rawArguments.continuation_id
+              : `${name}-${Date.now()}`;
+          void persistReport(
+            name,
+            promptText,
+            continuationId,
+            result.value.content ?? JSON.stringify(result.value),
+            process.cwd(),
+          );
+        }
+
         return {
           content: toTextContent(result.value),
           isError: false,
@@ -365,6 +396,25 @@ export function registerCoreTools(
   }
 
   server.manifest = manifest;
+  server.config = config;
+
+  // Log effective persistence config at startup
+  const defaultTools = [...manifest.values()]
+    .filter((e) => e.persist === "default")
+    .map((e) => e.name);
+  const optionalEnabled = [...config.persistence.enabledTools].filter((t) => {
+    const entry = manifest.get(t);
+    return entry?.persist === "optional";
+  });
+  const disabledFromDefaults = [...config.persistence.disabledTools].filter((t) =>
+    manifest.get(t)?.persist === "default",
+  );
+  logger.debug("Persistence config", {
+    enabled: config.persistence.enabled,
+    default_tools: defaultTools,
+    optional_enabled: optionalEnabled,
+    disabled: disabledFromDefaults,
+  });
 
   if (config.lazyTools) {
     // Lazy mode: register always-loaded tools + the tools meta-tool

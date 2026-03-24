@@ -8,12 +8,14 @@ import { estimateTokenCount } from "../src/utils/tokens";
 function createConfig(env: Record<string, string> = {}): BabConfig {
   return {
     env,
+    lazyTools: false,
     paths: {
       baseDir: "/tmp/.config/bab",
       envFile: "/tmp/.config/bab/env",
       pluginsDir: "/tmp/.config/bab/plugins",
       promptsDir: "/tmp/.config/bab/prompts",
     },
+    persistence: { enabled: false, enabledTools: new Set(), disabledTools: new Set() },
   };
 }
 
