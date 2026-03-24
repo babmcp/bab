@@ -121,6 +121,78 @@ describe("ProviderRegistry", () => {
     });
   });
 
+  test("infers google for unknown gemini-* model when configured", () => {
+    const registry = new ProviderRegistry({
+      config: createConfig({ GOOGLE_API_KEY: "key" }),
+    });
+
+    const model = registry.getModelInfo("gemini-2.5-flash");
+    expect(model?.id).toBe("gemini-2.5-flash");
+    expect(model?.provider).toBe("google");
+    expect(model?.capabilities.score).toBe(50);
+  });
+
+  test("infers openai for unknown gpt-* model when configured", () => {
+    const registry = new ProviderRegistry({
+      config: createConfig({ OPENAI_API_KEY: "key" }),
+    });
+
+    const model = registry.getModelInfo("gpt-4o");
+    expect(model?.id).toBe("gpt-4o");
+    expect(model?.provider).toBe("openai");
+  });
+
+  test("infers openai for o*-* reasoning models when configured", () => {
+    const registry = new ProviderRegistry({
+      config: createConfig({ OPENAI_API_KEY: "key" }),
+    });
+
+    const o3Model = registry.getModelInfo("o3-pro");
+    expect(o3Model?.id).toBe("o3-pro");
+    expect(o3Model?.provider).toBe("openai");
+
+    const futureGenerationModel = registry.getModelInfo("o5-mini");
+    expect(futureGenerationModel?.id).toBe("o5-mini");
+    expect(futureGenerationModel?.provider).toBe("openai");
+  });
+
+  test("infers anthropic for unknown claude-* model when configured", () => {
+    const registry = new ProviderRegistry({
+      config: createConfig({ ANTHROPIC_API_KEY: "key" }),
+    });
+
+    const model = registry.getModelInfo("claude-opus-4-20250514");
+    expect(model?.id).toBe("claude-opus-4-20250514");
+    expect(model?.provider).toBe("anthropic");
+  });
+
+  test("returns undefined for unknown model with no pattern match", () => {
+    const registry = new ProviderRegistry({
+      config: createConfig({ OPENAI_API_KEY: "key" }),
+    });
+
+    expect(registry.getModelInfo("llama-3.1-70b")).toBeUndefined();
+  });
+
+  test("returns undefined when pattern matches but provider not configured", () => {
+    const registry = new ProviderRegistry({
+      config: createConfig(),
+    });
+
+    expect(registry.getModelInfo("gemini-2.5-flash")).toBeUndefined();
+  });
+
+  test("static registry takes priority over inference", () => {
+    const registry = new ProviderRegistry({
+      config: createConfig({ GOOGLE_API_KEY: "key" }),
+    });
+
+    const model = registry.getModelInfo("gemini-2.5-pro");
+    expect(model?.id).toBe("gemini-2.5-pro");
+    // Static entry has score 100, inference would give 50
+    expect(model?.capabilities.score).toBe(100);
+  });
+
   test("rejects generateText when provider is not configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig(),
