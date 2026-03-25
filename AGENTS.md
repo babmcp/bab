@@ -3,18 +3,16 @@
 ## Project Overview
 
 Bab (باب) — TypeScript MCP server (Bun runtime) replacing pal-mcp-server.
-PRD: `plans/pal2_delegate_PRD_v1.0.md`
-Task index: `tasks/index.md`
 
 ## Task Execution Rules
 
 ### Dependency enforcement
-- **NEVER start a task before ALL its dependencies are marked `completed`** in the milestone file and `tasks/index.md`.
-- Before beginning any task, read its milestone file (`tasks/m<N>_*.md`) and verify every listed dep is done.
+- **NEVER start a task before ALL its dependencies are marked `completed`** in the milestone file and `./claude/tasks/index.md`.
+- Before beginning any task, read its milestone file (`./claude/tasks/m<N>_*.md`) and verify every listed dep is done.
 - If a dep is not completed, stop and report what is blocking.
 
 ### Status tracking
-- When starting a task: set status to `in_progress` in both the milestone file and `tasks/index.md`.
+- When starting a task: set status to `in_progress` in both the milestone file and `./claude/tasks/index.md`.
 - When finishing a task: set status to `completed`, increment progress counter, update `last_task` and `last_updated`.
 - If a milestone's tasks are all completed, set the milestone status to `completed`.
 
@@ -54,19 +52,6 @@ Task index: `tasks/index.md`
 - All logs to stderr (stdout reserved for MCP protocol) + file log at `~/.config/bab/logs/bab.log`
 - Tests: `bun test`
 
-## File Locations (remove after M1 — infer from codebase)
-
-- Source: `src/`
-- Types: `src/types/`
-- Tools: `src/tools/<tool-name>/`
-- Providers: `src/providers/`
-- delegate system: `src/delegate/`
-- Prompts: `src/prompts/`
-- Memory: `src/memory/`
-- Bundled plugins: `plugins/`
-- Analysis docs: `analyze/`
-- Plans: `plans/`
-- Milestones: `tasks/`
 
 ## Testing Rules
 
