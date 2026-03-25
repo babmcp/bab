@@ -268,18 +268,25 @@ export class BabServer {
         });
 
         if (this.shouldPersistTool(name)) {
-          const promptText = typeof rawArguments.prompt === "string" ? rawArguments.prompt : "";
+          const inputText =
+            typeof rawArguments.step === "string" ? rawArguments.step :
+            typeof rawArguments.findings === "string" ? rawArguments.findings :
+            typeof rawArguments.question === "string" ? rawArguments.question :
+            typeof rawArguments.prompt === "string" ? rawArguments.prompt : "";
           const continuationId =
-            typeof rawArguments.continuation_id === "string"
-              ? rawArguments.continuation_id
-              : `${name}-${Date.now()}`;
-          void persistReport(
-            name,
-            promptText,
+            typeof result.value.metadata?.continuation_id === "string"
+              ? result.value.metadata.continuation_id
+              : typeof rawArguments.continuation_id === "string"
+                ? rawArguments.continuation_id
+                : `${name}-${Date.now()}`;
+          void persistReport({
+            toolName: name,
             continuationId,
-            result.value.content ?? JSON.stringify(result.value),
-            process.cwd(),
-          );
+            inputText,
+            content: typeof result.value.content === "string" ? result.value.content : JSON.stringify(result.value),
+            models: [],
+            projectRoot: process.cwd(),
+          });
         }
 
         return {
