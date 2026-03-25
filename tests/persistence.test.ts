@@ -3,7 +3,15 @@ import { mkdir, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { clearPersistenceWarnings, persistReport } from "../src/memory/persistence";
+import { clearPersistenceWarnings, extractSummary, formatReport, persistReport, type PersistReportInput } from "../src/memory/persistence";
+
+function makeInput(overrides: Partial<PersistReportInput> & Pick<PersistReportInput, "toolName" | "inputText" | "continuationId" | "content">): PersistReportInput {
+  return { models: [], ...overrides };
+}
+
+function p(toolName: string, inputText: string, continuationId: string, content: string, projectRoot?: string): PersistReportInput {
+  return { toolName, inputText, continuationId, content, models: [], projectRoot };
+}
 
 async function mktemp(): Promise<string> {
   const dir = join(tmpdir(), `bab-persist-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -17,7 +25,7 @@ afterEach(() => clearPersistenceWarnings());
 describe("persistReport", () => {
   test("writes report file with timestamp-slug filename", async () => {
     const root = await mktemp();
-    await persistReport("debug", "fix auth bug in login", "cont-123", "# Report", root);
+    await persistReport(p("debug", "fix auth bug in login", "cont-123", "# Report", root));
 
     const files = await readdir(join(root, ".bab", "debug"));
     expect(files).toHaveLength(1);
@@ -26,16 +34,16 @@ describe("persistReport", () => {
 
   test("writes report content to file", async () => {
     const root = await mktemp();
-    await persistReport("analyze", "analyze performance", "cont-456", "## Analysis\nsome content", root);
+    await persistReport(p("analyze", "analyze performance", "cont-456", "## Analysis\nsome content", root));
 
     const files = await readdir(join(root, ".bab", "analyze"));
     const content = await readFile(join(root, ".bab", "analyze", files[0]!), "utf8");
-    expect(content).toBe("## Analysis\nsome content");
+    expect(content).toContain("## Analysis\nsome content");
   });
 
   test("falls back to continuation ID slug when prompt is empty", async () => {
     const root = await mktemp();
-    await persistReport("debug", "", "my-continuation-id", "# Report", root);
+    await persistReport(p("debug", "", "my-continuation-id", "# Report", root));
 
     const files = await readdir(join(root, ".bab", "debug"));
     expect(files[0]).toContain("my-continuation-id");
@@ -61,7 +69,7 @@ describe("persistReport", () => {
     const expectedName = `${ts}-same-prompt.md`;
     await Bun.write(join(fakeDir, expectedName), "pre-existing");
 
-    await persistReport("debug", "same prompt", "cont-2", "second", root);
+    await persistReport(p("debug", "same prompt", "cont-2", "second", root));
 
     const files = await readdir(fakeDir);
     expect(files).toHaveLength(2);
@@ -75,9 +83,9 @@ describe("persistReport", () => {
     // Use a non-writable path to trigger failure
     const badRoot = "/dev/null/not-a-dir";
 
-    await persistReport("debug", "test", "cont-warn", "content", badRoot);
-    await persistReport("debug", "test", "cont-warn", "content", badRoot);
-    await persistReport("debug", "test", "cont-warn", "content", badRoot);
+    await persistReport(p("debug", "test", "cont-warn", "content", badRoot));
+    await persistReport(p("debug", "test", "cont-warn", "content", badRoot));
+    await persistReport(p("debug", "test", "cont-warn", "content", badRoot));
 
     // Verify no throw (handled internally) and only one warning per continuation ID
     // The dedup is internal — we just verify it doesn't throw
@@ -89,8 +97,8 @@ describe("persistReport", () => {
   test("different continuation IDs each get their own warning", async () => {
     const badRoot = "/dev/null/not-a-dir";
     // Should not throw regardless of continuation IDs
-    await persistReport("debug", "test", "cont-a", "content", badRoot);
-    await persistReport("debug", "test", "cont-b", "content", badRoot);
+    await persistReport(p("debug", "test", "cont-a", "content", badRoot));
+    await persistReport(p("debug", "test", "cont-b", "content", badRoot));
     expect(true).toBeTrue();
   });
 
@@ -99,7 +107,7 @@ describe("persistReport", () => {
     // We don't assert the path to avoid polluting the real filesystem in tests
     let threw = false;
     try {
-      await persistReport("debug", "test fallback", "cont-fallback", "content");
+      await persistReport(p("debug", "test fallback", "cont-fallback", "content"));
     } catch {
       threw = true;
     }
@@ -237,5 +245,136 @@ describe("shouldPersistTool (via BabServer)", () => {
 
     expect(server.shouldPersistTool("tracer")).toBeFalse();
     expect(server.shouldPersistTool("analyze")).toBeTrue(); // others still on
+  });
+});
+
+describe("extractSummary", () => {
+  test("extracts from <SUMMARY> tags", () => {
+    const content = "Some preamble\n<SUMMARY>Short summary here.</SUMMARY>\nMore content.";
+    expect(extractSummary(content)).toBe("Short summary here.");
+  });
+
+  test("falls back to first paragraph when no SUMMARY tag", () => {
+    const content = "First sentence. Second sentence. Third sentence. Fourth sentence.\n\nSecond paragraph.";
+    const summary = extractSummary(content);
+    expect(summary).toContain("First sentence.");
+    expect(summary).not.toContain("Second paragraph.");
+  });
+
+  test("strips markdown heading prefix in fallback", () => {
+    const content = "## Analysis Result\nThis is the result.\n\nMore stuff.";
+    expect(extractSummary(content)).not.toMatch(/^##/);
+  });
+
+  test("returns empty string for empty content", () => {
+    expect(extractSummary("")).toBe("");
+  });
+});
+
+describe("formatReport", () => {
+  test("includes YAML frontmatter with all required fields", () => {
+    const input = makeInput({ toolName: "analyze", inputText: "check this code", continuationId: "cont-abc", content: "The code looks fine." });
+    const report = formatReport(input);
+    expect(report).toContain("schema_version: 1");
+    expect(report).toContain("tool: bab:analyze");
+    expect(report).toContain("continuation_id: cont-abc");
+    expect(report).toContain("timestamp:");
+  });
+
+  test("includes summary line", () => {
+    const input = makeInput({ toolName: "debug", inputText: "fix the bug", continuationId: "cont-1", content: "Root cause is a null pointer. The fix is straightforward." });
+    expect(formatReport(input)).toContain("**Summary:**");
+  });
+
+  test("includes Request and Analysis sections", () => {
+    const input = makeInput({ toolName: "analyze", inputText: "analyze performance", continuationId: "cont-2", content: "Performance looks good." });
+    const report = formatReport(input);
+    expect(report).toContain("## Request");
+    expect(report).toContain("## Analysis");
+    expect(report).toContain("Performance looks good.");
+  });
+
+  test("omits Expert Validation section when no expertContent", () => {
+    const input = makeInput({ toolName: "analyze", inputText: "test", continuationId: "cont-3", content: "Some analysis." });
+    expect(formatReport(input)).not.toContain("## Expert Validation");
+  });
+
+  test("includes Expert Validation section when expertContent provided", () => {
+    const input = makeInput({ toolName: "analyze", inputText: "test", continuationId: "cont-4", content: "Primary analysis.", expertContent: "Expert says it's fine." });
+    const report = formatReport(input);
+    expect(report).toContain("## Expert Validation");
+    expect(report).toContain("Expert says it's fine.");
+  });
+
+  test("includes files in frontmatter when provided", () => {
+    const input = makeInput({ toolName: "codereview", inputText: "review src/foo.ts", continuationId: "cont-5", content: "Looks good.", files: ["src/foo.ts", "src/bar.ts"] });
+    const report = formatReport(input);
+    expect(report).toContain("files:");
+    expect(report).toContain("src/foo.ts");
+  });
+
+  test("multi-model frontmatter for consensus tool", () => {
+    const input: PersistReportInput = {
+      toolName: "consensus",
+      inputText: "is this a good idea?",
+      continuationId: "cont-6",
+      content: "All models agree.",
+      models: [
+        { id: "model-a", provider: "anthropic", role: "panelist" },
+        { id: "model-b", provider: "openai", role: "panelist" },
+        { id: "model-c", provider: "anthropic", role: "synthesis" },
+      ],
+    };
+    const report = formatReport(input);
+    expect(report).toContain("role: panelist");
+    expect(report).toContain("role: synthesis");
+    expect(report).toContain("model-a");
+    expect(report).toContain("model-b");
+    expect(report).toContain("model-c");
+  });
+});
+
+async function mktemp2(): Promise<string> {
+  const dir = join(tmpdir(), `bab-persist-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  await mkdir(dir, { recursive: true });
+  return dir;
+}
+
+describe("multi-step workflow report appending", () => {
+  test("appends step with correct numbering on continuation", async () => {
+    const root = await mktemp2();
+    await persistReport(p("analyze", "step one", "cont-ms-1", "First analysis.", root));
+    await persistReport(p("analyze", "step two", "cont-ms-1", "Second analysis.", root));
+
+    const files = await readdir(join(root, ".bab", "analyze"));
+    expect(files).toHaveLength(1);
+
+    const content = await readFile(join(root, ".bab", "analyze", files[0]!), "utf8");
+    expect(content).toContain("## Step 2:");
+    expect(content).toContain("Second analysis.");
+  });
+
+  test("first report does not have Step heading", async () => {
+    const root = await mktemp2();
+    await persistReport(p("debug", "initial step", "cont-ms-2", "Initial analysis.", root));
+
+    const files = await readdir(join(root, ".bab", "debug"));
+    const content = await readFile(join(root, ".bab", "debug", files[0]!), "utf8");
+    expect(content).not.toContain("## Step 1:");
+  });
+
+  test("three-step continuation increments step numbers correctly", async () => {
+    const root = await mktemp2();
+    await persistReport(p("analyze", "step one", "cont-ms-3", "Analysis 1.", root));
+    await persistReport(p("analyze", "step two", "cont-ms-3", "Analysis 2.", root));
+    await persistReport(p("analyze", "step three", "cont-ms-3", "Analysis 3.", root));
+
+    const files = await readdir(join(root, ".bab", "analyze"));
+    expect(files).toHaveLength(1);
+
+    const content = await readFile(join(root, ".bab", "analyze", files[0]!), "utf8");
+    expect(content).toContain("## Step 2:");
+    expect(content).toContain("## Step 3:");
+    expect(content).toContain("Analysis 3.");
   });
 });
