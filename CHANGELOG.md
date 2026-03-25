@@ -8,31 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add persistence layer for tool report storage.
+
+### Other
+
+- Gracefully skip missing files in embedFiles and clarify delegate role description.
+- Dynamic model inference in ProviderRegistry.
+- Dynamic model discovery via provider APIs.
+- Structured report format with frontmatter, summary, and multi-step appending.
+- Bump version to 0.1.2-20260325.
+
 ## [0.1.2-20260316] - 2026-03-16
 
 ### Added
 
-- Lazy tool loading via `BAB_LAZY_TOOLS=1` — register only 5 essential tools at startup instead of 17, reducing initial schema payload by 80%.
-- `tools` meta-tool for discovering and activating tools on demand by name, category, or all at once.
-- Tool manifest system with categories: analysis, generation, review, planning, delegation, info.
-- Auto-load on `callTool` — unloaded tools load transparently on first use.
-- `tools/list_changed` notification support so clients refresh after dynamic registration.
-- Concurrency-safe tool loading via promise coalescing.
-- Support `BAB_DISABLED_TOOLS` env var to blocklist specific tools from registration.
+- Add changelog script and generate CHANGELOG.md.
+- Add model ID format guidance to all tool schemas.
+- Add .describe() to 8 schema fields that cause LLM misuse.
 
 ### Changed
 
-- Add `.describe()` to schema fields that LLMs commonly misuse: `continuation_id`, `next_step_required`, `relevant_files`, `cli_name`, and consensus fields.
-- Add model ID format guidance to all tool `model` fields — explains SDK IDs vs `pluginId/modelName` format.
-- Model-not-found errors now list available SDK model IDs directly.
-- `list_models` description updated to position it as the discovery tool for model IDs.
-- Date-based version tags (e.g. `v0.1.2-20260316`) now treated as pre-release in CI.
+- Auto-generate changelog on tag push, mark rc/beta as pre-release.
+- Rename changelog script to changelog:update.
+- Update changelog with unreleased changes.
+- Update changelog with M16 lazy tool loading and schema improvements.
 
 ### Other
 
-- Add changelog script and generate CHANGELOG.md.
-- Auto-generate changelog on tag push, mark rc/beta/date tags as pre-release.
+- Strip Co-authored-by trailers from changelog output.
+- Use only commit subject line in changelog entries.
 - Note that MCP client env vars override the bab env file.
+- Support BAB_DISABLED_TOOLS env var to blocklist tools.
+- Lazy tool loading via BAB_LAZY_TOOLS=1.
+- Include available SDK models in model-not-found error.
+- Bump version to 0.1.2-20260316.
+- Treat date-based version tags as pre-release.
+- Finalize changelog for v0.1.2-20260316.
 
 ## [0.1.2-rc2] - 2026-03-14
 
