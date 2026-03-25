@@ -124,15 +124,16 @@ export class BabServer {
   private readonly loadingPromises = new Map<string, Promise<RegisteredTool>>();
 
   shouldPersistTool(toolName: string): boolean {
-    if (!this.config?.persistence.enabled) return false;
+    const persistence = this.config?.persistence;
+    if (!persistence?.enabled) return false;
     const entry = this.manifest.get(toolName);
     if (!entry) return false;
     if (entry.persist === "never") return false;
     if (entry.persist === "default") {
-      return !this.config.persistence.disabledTools.has(toolName);
+      return !persistence.disabledTools.has(toolName);
     }
     // optional
-    return this.config.persistence.enabledTools.has(toolName);
+    return persistence.enabledTools.has(toolName);
   }
 
   constructor() {
@@ -409,15 +410,15 @@ export function registerCoreTools(
   const defaultTools = [...manifest.values()]
     .filter((e) => e.persist === "default")
     .map((e) => e.name);
-  const optionalEnabled = [...config.persistence.enabledTools].filter((t) => {
+  const optionalEnabled = [...(config.persistence?.enabledTools ?? [])].filter((t) => {
     const entry = manifest.get(t);
     return entry?.persist === "optional";
   });
-  const disabledFromDefaults = [...config.persistence.disabledTools].filter((t) =>
+  const disabledFromDefaults = [...(config.persistence?.disabledTools ?? [])].filter((t) =>
     manifest.get(t)?.persist === "default",
   );
   logger.debug("Persistence config", {
-    enabled: config.persistence.enabled,
+    enabled: config.persistence?.enabled,
     default_tools: defaultTools,
     optional_enabled: optionalEnabled,
     disabled: disabledFromDefaults,

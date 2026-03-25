@@ -22,9 +22,9 @@ export interface BabPersistenceConfig {
 
 export interface BabConfig {
   env: Record<string, string>;
-  lazyTools: boolean;
+  lazyTools?: boolean;
   paths: BabConfigPaths;
-  persistence: BabPersistenceConfig;
+  persistence?: BabPersistenceConfig;
 }
 
 export interface ParseEnvFileOptions {

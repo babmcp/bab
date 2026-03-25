@@ -18,7 +18,7 @@ function mockFetch(response: unknown, status = 200) {
         headers: { "Content-Type": "application/json" },
       }),
     ),
-  );
+  ) as unknown as typeof fetch;
 }
 
 describe("discoverModels", () => {
@@ -96,7 +96,7 @@ describe("discoverModels", () => {
   });
 
   test("returns empty array and logs warning on fetch failure", async () => {
-    globalThis.fetch = mock(() => Promise.reject(new Error("network error")));
+    globalThis.fetch = mock(() => Promise.reject(new Error("network error"))) as unknown as typeof fetch;
 
     const models = await discoverModels("openai", "test-key");
     expect(models).toHaveLength(0);
@@ -116,7 +116,7 @@ describe("discoverModels", () => {
       return Promise.resolve(
         new Response(JSON.stringify({ data: [{ id: "gpt-4o" }] }), { status: 200 }),
       );
-    });
+    }) as unknown as typeof fetch;
 
     await discoverModels("openai", "test-key");
     await discoverModels("openai", "test-key");
@@ -135,7 +135,7 @@ describe("discoverModels", () => {
           10,
         ),
       );
-    });
+    }) as unknown as typeof fetch;
 
     await Promise.all([
       discoverModels("openai", "test-key"),
