@@ -38,13 +38,11 @@ describe("env utilities", () => {
 
   test("mergeEnv applies precedence and denylists file-based overrides", () => {
     const processEnv = {
-      BAB_RESERVED: "process-kept",
       GLOBAL_ONLY: "process",
       PATH: "/usr/bin",
       SHARED: "process",
     };
     const globalEnv = {
-      BAB_RESERVED: "global-blocked",
       GLOBAL_ONLY: "global",
       PATH: "/blocked-global",
       SHARED: "global",
@@ -58,7 +56,6 @@ describe("env utilities", () => {
 
     const merged = mergeEnv(processEnv, globalEnv, pluginEnv);
 
-    expect(merged.BAB_RESERVED).toBe("process-kept");
     expect(merged.BAB_PLUGIN_PRIVATE).toBeUndefined();
     expect(merged.GLOBAL_ONLY).toBe("global");
     expect(merged.PATH).toBe("/usr/bin");
@@ -66,6 +63,34 @@ describe("env utilities", () => {
     expect(merged.SHARED).toBe("plugin");
     expect(globalEnv.PATH).toBe("/blocked-global");
     expect(pluginEnv.PATH).toBe("/blocked-plugin");
+  });
+
+  test("mergeEnv strips BAB_* and API keys from process env", () => {
+    const processEnv = {
+      ANTHROPIC_API_KEY: "sk-ant-secret",
+      OPENAI_API_KEY: "sk-openai-secret",
+      GOOGLE_API_KEY: "google-secret",
+      GEMINI_API_KEY: "gemini-secret",
+      OPENROUTER_API_KEY: "or-secret",
+      GITHUB_TOKEN: "ghp_secret",
+      GH_TOKEN: "ghp_secret2",
+      BAB_LOG_LEVEL: "debug",
+      BAB_LAZY_TOOLS: "1",
+      SAFE_VAR: "keep-me",
+    };
+
+    const merged = mergeEnv(processEnv, {}, {});
+
+    expect(merged.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(merged.OPENAI_API_KEY).toBeUndefined();
+    expect(merged.GOOGLE_API_KEY).toBeUndefined();
+    expect(merged.GEMINI_API_KEY).toBeUndefined();
+    expect(merged.OPENROUTER_API_KEY).toBeUndefined();
+    expect(merged.GITHUB_TOKEN).toBeUndefined();
+    expect(merged.GH_TOKEN).toBeUndefined();
+    expect(merged.BAB_LOG_LEVEL).toBeUndefined();
+    expect(merged.BAB_LAZY_TOOLS).toBeUndefined();
+    expect(merged.SAFE_VAR).toBe("keep-me");
   });
 
   test("mergeEnv strips dangerous process env vars from delegate env", () => {

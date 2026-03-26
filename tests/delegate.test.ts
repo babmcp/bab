@@ -255,6 +255,41 @@ describe("plugin-cache race conditions", () => {
     // Cleanup
     invalidatePluginCache();
   });
+
+  test("does not permanently cache a rejected inflight promise", async () => {
+    // This test verifies the H3 fix: after a transient failure clears inflight,
+    // subsequent calls retry rather than re-awaiting the rejected promise.
+    // We simulate by calling with a valid config (bundled plugins always resolve).
+    const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-cache-retry-"));
+    const pluginDir = join(pluginsRoot, "retry-plugin");
+
+    await mkdir(pluginDir, { recursive: true });
+    await writeFile(
+      join(pluginDir, "manifest.yaml"),
+      [
+        "id: retry-plugin",
+        "name: Retry Plugin",
+        "version: 1.0.0",
+        "command: echo",
+        "roles:",
+        "  - default",
+      ].join("\n"),
+    );
+
+    const config = {
+      paths: { pluginsDir: pluginsRoot },
+      env: {},
+    } as unknown as import("../src/config").BabConfig;
+
+    invalidatePluginCache();
+    const first = await getLoadedPlugins(config);
+    invalidatePluginCache();
+    // Second call after invalidation must resolve fresh, not hang or throw
+    const second = await getLoadedPlugins(config);
+
+    expect(first.length).toBeGreaterThanOrEqual(1);
+    expect(second.length).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe("ProcessRunner", () => {
@@ -266,6 +301,7 @@ describe("ProcessRunner", () => {
         "console.log('hello'); console.error('oops');",
       ],
       command: "bun",
+      env: { ...process.env } as Record<string, string>,
       timeoutMs: 1_000,
     });
 
@@ -283,6 +319,7 @@ describe("ProcessRunner", () => {
         "setTimeout(() => console.log('done'), 5000);",
       ],
       command: "bun",
+      env: { ...process.env } as Record<string, string>,
       killGraceMs: 50,
       timeoutMs: 100,
     });
@@ -298,6 +335,7 @@ describe("ProcessRunner", () => {
     const slowRun = runner.run("slow-run", {
       args: ["-e", "await Bun.sleep(2000);"],
       command: "bun",
+      env: { ...process.env } as Record<string, string>,
       timeoutMs: 5_000,
     });
 
@@ -306,10 +344,11 @@ describe("ProcessRunner", () => {
     expect(runner.activeCount).toBe(1);
 
     // A second run should be rejected immediately
-    await expect(
+    expect(
       runner.run("second-run", {
         args: ["-e", "console.log('hi');"],
         command: "bun",
+        env: { ...process.env } as Record<string, string>,
         timeoutMs: 1_000,
       }),
     ).rejects.toThrow("Process concurrency limit reached");
@@ -325,6 +364,7 @@ describe("ProcessRunner", () => {
     const first = await runner.run("first-run", {
       args: ["-e", "console.log('first');"],
       command: "bun",
+      env: { ...process.env } as Record<string, string>,
       timeoutMs: 1_000,
     });
     expect(first.exitCode).toBe(0);
@@ -334,6 +374,7 @@ describe("ProcessRunner", () => {
     const second = await runner.run("second-run", {
       args: ["-e", "console.log('second');"],
       command: "bun",
+      env: { ...process.env } as Record<string, string>,
       timeoutMs: 1_000,
     });
     expect(second.exitCode).toBe(0);

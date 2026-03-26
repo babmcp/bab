@@ -12,7 +12,8 @@ export interface ProcessRunOptions {
   args?: string[];
   command: string;
   cwd?: string;
-  env?: Record<string, string>;
+  /** Explicit env for the child process. Callers must provide a sanitized env — no default. */
+  env: Record<string, string>;
   input?: string;
   killGraceMs?: number;
   timeoutMs?: number;
@@ -71,7 +72,7 @@ export class ProcessRunner {
     return new Promise<ProcessRunResult>((resolve, reject) => {
       const child = spawn(command, args, {
         cwd,
-        env: env ?? { ...process.env },
+        env,
         stdio: "pipe",
       });
 

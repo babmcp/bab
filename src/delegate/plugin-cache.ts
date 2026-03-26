@@ -40,11 +40,16 @@ export async function getLoadedPlugins(
     return inflight;
   }
 
-  inflight = discoverAndLoad(config).then((loaded) => {
-    cached = { loaded, at: Date.now() };
-    inflight = undefined;
-    return loaded;
-  });
+  inflight = discoverAndLoad(config)
+    .then((loaded) => {
+      cached = { loaded, at: Date.now() };
+      inflight = undefined;
+      return loaded;
+    })
+    .catch((err: unknown) => {
+      inflight = undefined;
+      throw err;
+    });
 
   return inflight;
 }

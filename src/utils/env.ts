@@ -40,10 +40,23 @@ const FILE_ENV_DENYLIST = new Set([
 ]);
 
 /** Env var prefixes stripped from the merged env before passing to delegates. */
-const PROCESS_ENV_STRIP_PREFIXES = ["CLAUDE_", "CLAUDECODE"];
+const PROCESS_ENV_STRIP_PREFIXES = ["CLAUDE_", "CLAUDECODE", "BAB_"];
 
-/** Dangerous env vars stripped from process env before passing to delegates. */
-const DELEGATE_ENV_DENYLIST: Set<string> = new Set(RUNTIME_INJECTION_VARS);
+/**
+ * Dangerous env vars stripped from process env before passing to delegates.
+ * API keys are stripped here; plugins that need a specific key must declare it
+ * in their manifest env file so it gets injected explicitly.
+ */
+const DELEGATE_ENV_DENYLIST: Set<string> = new Set([
+  ...RUNTIME_INJECTION_VARS,
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "GOOGLE_API_KEY",
+  "GEMINI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "GITHUB_TOKEN",
+  "GH_TOKEN",
+]);
 
 function isFileEnvDenied(key: string): boolean {
   return FILE_ENV_DENYLIST.has(key) || key.startsWith("BAB_");

@@ -337,6 +337,7 @@ describe("P3: ProcessRunner output buffer cap", () => {
         "for(let i=0;i<500000;i++) process.stdout.write('x');",
       ],
       command: "bun",
+      env: { ...process.env } as Record<string, string>,
       timeoutMs: 10_000,
     });
 
@@ -351,6 +352,7 @@ describe("Q2: ProcessRunner.cancel awaits termination", () => {
     const runPromise = runner.run("test-cancel", {
       args: ["-e", "setTimeout(() => {}, 30000);"],
       command: "bun",
+      env: { ...process.env } as Record<string, string>,
       timeoutMs: 30_000,
     });
 

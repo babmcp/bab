@@ -8,7 +8,7 @@ export interface ResolvedRole {
 }
 
 export interface DelegateRunInput {
-  env?: Record<string, string>;
+  env: Record<string, string>;
   prompt: string;
   role: ResolvedRole;
   runId: string;
