@@ -49,7 +49,7 @@ Bab (باب) — TypeScript MCP server (Bun runtime) replacing pal-mcp-server.
 - Validation: Zod schemas, `zod-to-json-schema` for MCP
 - Error handling: `Result<T, E>` discriminated unions — no thrown exceptions for control flow
 - Composition over inheritance — no mixins
-- All logs to stderr (stdout reserved for MCP protocol) + file log at `~/.config/bab/logs/bab.log`
+- All logs to stderr (stdout reserved for MCP protocol) + file logs at `~/.config/bab/logs/` (`mcp.log`, `error.log`, per-plugin `<id>.log`)
 - Tests: `bun test`
 
 

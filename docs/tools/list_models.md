@@ -29,7 +29,7 @@ The `list_models` tool shows all AI models available to bab, organized by source
 
 1. The tool queries two sources in parallel:
    - **Provider registry** — models from configured AI providers (Gemini, OpenAI, etc.)
-   - **Plugin adapters** — models from delegate plugins that implement the optional `listModels()` method
+   - **Plugin adapters** — models from delegate plugins that implement the optional `listModels()` method (loaded via the 5-second TTL plugin cache)
 2. Results are merged and returned with metadata (counts, sources)
 3. No authentication is performed — the tool reads existing configuration
 

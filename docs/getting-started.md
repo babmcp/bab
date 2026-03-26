@@ -44,18 +44,41 @@ bab selfupdate
 
 Bab creates and uses `~/.config/bab/`:
 
-- `~/.config/bab/env`
-- `~/.config/bab/plugins/`
-- `~/.config/bab/prompts/`
+- `~/.config/bab/env` — dotenv-style environment file
+- `~/.config/bab/plugins/` — delegate plugins (one directory per plugin)
+- `~/.config/bab/prompts/` — prompt overrides
+- `~/.config/bab/logs/` — log files (`mcp.log`, `error.log`, per-plugin logs)
 
-Supported provider environment variables:
+### Provider API Keys
+
+Set these in `~/.config/bab/env` or in your MCP client config:
 
 - `GOOGLE_API_KEY`
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - `OPENROUTER_API_KEY`
-- `CUSTOM_API_KEY`
-- `CUSTOM_API_URL`
+- `CUSTOM_API_KEY` + `CUSTOM_API_URL`
+
+### Bab Environment Variables
+
+| Variable | Type | Description |
+|---|---|---|
+| `BAB_DISABLED_TOOLS` | comma-separated | Tool names to exclude |
+| `BAB_EAGER_TOOLS` | boolean | Set to `1` to disable lazy tool loading |
+| `BAB_PERSIST` | boolean | Set to `false` to disable report persistence |
+| `BAB_PERSIST_TOOLS` | comma-separated | Only persist reports for these tools |
+| `BAB_DISABLED_PERSIST_TOOLS` | comma-separated | Disable persistence for these tools |
+| `BAB_CLI_TIMEOUT_MS` | integer | Override delegate CLI timeout (default: 3 hours) |
+| `BAB_MAX_CONCURRENT_PROCESSES` | integer | Max concurrent delegate processes (default: 5) |
+| `BAB_LOG_LEVEL` | string | `debug`, `info`, `warn`, or `error` (default: `info`) |
+
+### Logging
+
+Log files are stored in `~/.config/bab/logs/`:
+
+- `mcp.log` — all server events
+- `error.log` — warnings and errors only
+- `<pluginId>.log` — per-plugin delegate I/O
 
 ## Common Commands
 

@@ -27,8 +27,11 @@ That name fits the project because Bab acts as a gateway between MCP clients and
 - Slash commands via MCP prompts protocol (`/bab:chat`, `/bab:review`, `/bab:think`, etc.)
 - In-memory conversation storage with continuation support and a 20-turn limit
 - Full core and specialized workflow tool suite
+- Lazy tool loading by default (5 tools at startup vs 17), with on-demand auto-load
 - CLI entrypoint with `serve`, `add`, `remove`, `list`, `selfupdate`, and `test-plugin` commands
 - Plugin SDK export surface via `@babmcp/bab/sdk`
+- Delegate environment hardening: API keys and `BAB_*` internal vars are never leaked to subprocesses
+- Dedicated error log at `~/.config/bab/logs/error.log` for quick debugging
 
 ## Install
 
@@ -209,16 +212,31 @@ Supported provider environment variables:
 - `CUSTOM_API_KEY`
 - `CUSTOM_API_URL`
 
-### Disabling tools
+### Environment Variables
 
-Set `BAB_DISABLED_TOOLS` to a comma-separated list of tool names to prevent them from being registered:
+All `BAB_*` variables are validated through a Zod schema on startup. Invalid values produce clear error messages.
+
+| Variable | Type | Description |
+|---|---|---|
+| `BAB_DISABLED_TOOLS` | comma-separated | Tool names to exclude from `tools/list` (case-insensitive) |
+| `BAB_ENABLED_TOOLS` | comma-separated | If set, only these tools are registered |
+| `BAB_EAGER_TOOLS` | boolean | Set to `1` to register all tools at startup instead of lazy loading |
+| `BAB_PERSIST` | boolean | Set to `false` to disable report persistence (default: `true`) |
+| `BAB_PERSIST_TOOLS` | comma-separated | Only persist reports for these tools |
+| `BAB_DISABLED_PERSIST_TOOLS` | comma-separated | Disable persistence for these tools |
+| `BAB_CLI_TIMEOUT_MS` | integer | Override delegate CLI timeout (default: 3 hours) |
+| `BAB_MAX_CONCURRENT_PROCESSES` | integer | Max concurrent delegate processes (default: 5) |
+| `BAB_LOG_LEVEL` | string | Logging level: `debug`, `info`, `warn`, `error` (default: `info`) |
+
+Example:
 
 ```bash
 # ~/.config/bab/env
 BAB_DISABLED_TOOLS=delegate,tracer
+BAB_LOG_LEVEL=debug
 ```
 
-Or pass it via your MCP client config:
+Or via your MCP client config:
 
 ```json
 {
@@ -234,7 +252,29 @@ Or pass it via your MCP client config:
 }
 ```
 
-Tool names are case-insensitive. Disabled tools will not appear in `tools/list` responses.
+### Logging
+
+Log files are stored in `~/.config/bab/logs/`:
+
+| File | Contents |
+|---|---|
+| `mcp.log` | Server lifecycle, tool calls, protocol events (all levels) |
+| `error.log` | Warnings and errors only — quick debugging |
+| `<pluginId>.log` | Per-plugin delegate I/O (e.g. `copilot.log`, `opencode.log`) |
+
+Set `BAB_LOG_LEVEL=debug` for verbose output including stack traces in error responses.
+
+### Security
+
+Delegate subprocesses receive a sanitized environment:
+
+- **API keys stripped**: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `GITHUB_TOKEN`, `GH_TOKEN`
+- **Internal vars stripped**: All `BAB_*`, `CLAUDE_*`, and `CLAUDECODE*` prefixed variables
+- **Runtime injection vars stripped**: `LD_PRELOAD`, `NODE_OPTIONS`, `DYLD_INSERT_LIBRARIES`, etc.
+- **Stack traces**: Never included in tool error responses (debug mode only)
+- **Working directory**: Validated to be within project root, home, or tmp
+
+Plugins that need an API key must declare it in their own `env` file (`~/.config/bab/plugins/<id>/env`).
 
 ## Delegate Plugins
 
@@ -304,18 +344,22 @@ Full documentation is available at **[babmcp.github.io/bab](https://babmcp.githu
 
 ```text
 src/
-  config.ts
-  server.ts
-  delegate/
-  memory/
-  prompts/
-  providers/
-  tools/
-  types/
-  utils/
-tests/
-tasks/
-plans/
+  config.ts           # BAB_* env validation, config loading
+  server.ts           # MCP server setup, tool registration
+  version.ts          # Centralized version constant
+  bootstrap.ts        # Core tool names, startup wiring
+  delegate/           # Plugin discovery, loading, caching, process runner
+  memory/             # Conversation store, report persistence
+  prompts/            # Built-in tool and role prompts
+  providers/          # Vercel AI SDK registry, model gateway
+  tools/              # 17 built-in tools (lazy-loaded by default)
+  sdk/                # Plugin author SDK (@babmcp/bab/sdk)
+  commands/           # CLI commands (serve, add, remove, list, selfupdate)
+  types/              # Shared type definitions
+  utils/              # Env sanitization, path containment, logging, tokens
+plugins/              # Bundled plugins (opencode)
+tests/                # bun:test test suite
+docs/                 # GitHub Pages documentation
 ```
 
 ## Development

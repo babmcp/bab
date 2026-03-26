@@ -49,11 +49,11 @@ The delegate tool discovers and invokes external CLI tools through a plugin syst
 - **Multi-CLI support**: Works with Claude Code, Codex, Copilot, OpenCode, and any CLI with a plugin adapter
 - **Plugin ecosystem**: Bundled plugins ship with bab; external plugins installable via `bab add <git-url>` or `bab add <directory>`
 - **Role presets**: Named role configurations that customize the prompt behavior per plugin
-- **Working directory control**: Run CLI tools in any directory on your system
+- **Working directory validation**: Run CLI tools in any directory within project root, home, or tmp
 - **Summary extraction**: Automatically extracts `<SUMMARY>` tags for concise output
 - **Output truncation**: Caps response at 20,000 characters to prevent protocol overflow
 - **Per-plugin logging**: Each plugin logs to `~/.config/bab/logs/<plugin-id>.log`
-- **Configurable timeout**: Set via `BAB_CLI_TIMEOUT_MS` environment variable (default: 5 minutes)
+- **Configurable timeout**: Set via `BAB_CLI_TIMEOUT_MS` environment variable (default: 3 hours)
 - **Plugin caching**: 5-second TTL cache for plugin discovery to avoid repeated filesystem scans
 
 ## Tool Parameters
@@ -61,7 +61,7 @@ The delegate tool discovers and invokes external CLI tools through a plugin syst
 - `prompt` (string, required): The prompt to send to the external CLI tool
 - `role` (string, optional, default "default"): Role preset name that customizes prompt behavior
 - `cli_name` (string, optional): Plugin identifier to use (required when multiple plugins are loaded or none is set as default)
-- `working_directory` (string, optional): Absolute path to use as the working directory for the CLI process
+- `working_directory` (string, optional): Absolute path to use as the working directory for the CLI process. Must be within the project root, home directory, or tmp.
 
 ## Plugin Management
 
@@ -115,7 +115,7 @@ bab add /path/to/my-plugin
 - **Keep prompts focused**: Each delegation is a single CLI invocation; break complex tasks into multiple calls
 - **Check plugin availability**: Ensure the target CLI is installed and accessible in your PATH
 - **Use `<SUMMARY>` tags** in plugin prompts when you want concise output back
-- **Adjust timeout** via `BAB_CLI_TIMEOUT_MS` for long-running tasks (default is 5 minutes)
+- **Adjust timeout** via `BAB_CLI_TIMEOUT_MS` for long-running tasks (default is 3 hours)
 
 ## When to Use Delegate vs Other Tools
 

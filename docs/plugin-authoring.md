@@ -103,17 +103,35 @@ Plugins receive a merged environment built from three sources, in priority order
 
 1. **Plugin `env` file** (`~/.config/bab/plugins/<id>/env`) — plugin-specific variables, highest priority
 2. **Global `env` file** (`~/.config/bab/env`) — shared variables across all plugins
-3. **Process environment** — inherited from the bab process
+3. **Process environment** — inherited from the bab process (sanitized)
 
-Certain variables are always sourced from the real process environment regardless of config, to prevent path/security override: `PATH`, `HOME`, `USER`, `SHELL`, `TERM`, `TMPDIR`, `LANG`, and `LC_*` variables.
+### Sanitized Variables
 
-Variables with the `BAB_INTERNAL_` prefix are stripped and never forwarded to adapters.
+The following are **automatically stripped** from the delegate subprocess environment for security:
 
-Useful variables:
+- **API keys**: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `GITHUB_TOKEN`, `GH_TOKEN`
+- **Internal prefixes**: `BAB_*`, `CLAUDE_*`, `CLAUDECODE*`
+- **Runtime injection**: `LD_PRELOAD`, `DYLD_INSERT_LIBRARIES`, `NODE_OPTIONS`, `NODE_PATH`, `BUN_OPTIONS`, `LD_LIBRARY_PATH`, `DYLD_LIBRARY_PATH`
+
+Certain variables are always sourced from the real process environment regardless of config: `PATH`, `HOME`, `USER`, `SHELL`.
+
+### Providing API Keys to Plugins
+
+If your plugin needs an API key (e.g. to call an external service), declare it in the plugin's own `env` file:
+
+```bash
+# ~/.config/bab/plugins/my-plugin/env
+MY_PLUGIN_API_KEY=sk-my-key
+```
+
+Plugin env files bypass the process-env strip list — they are treated as explicit declarations from the plugin author. The global file-env denylist still applies (`PATH`, `HOME`, proxy vars, etc.).
+
+### Useful Variables
 
 | Variable | Description |
 |---|---|
 | `BAB_CLI_TIMEOUT_MS` | Override the default CLI timeout (default: 3 hours). Applies to all adapters. |
+| `BAB_MAX_CONCURRENT_PROCESSES` | Max concurrent delegate processes (default: 5). |
 
 ## Prompt Files
 
