@@ -92,7 +92,8 @@ function createPerClientFileSink(): Sink & Disposable {
  * Initialise LogTape. Call once at startup before any logging.
  *
  * Log files in ~/.config/bab/logs/:
- *   - mcp.log — server lifecycle, tool calls, protocol events
+ *   - mcp.log — server lifecycle, tool calls, protocol events (all levels)
+ *   - error.log — errors and warnings only, for quick debugging
  *   - <pluginId>.log — per-plugin delegate I/O (opencode.log, copilot.log, etc.)
  *
  * All logs also go to stderr as JSON lines.
@@ -113,12 +114,24 @@ export async function configureLogging(): Promise<void> {
     maxFiles: MAX_FILES,
     formatter,
   });
+  const errorBaseFileSink = getRotatingFileSink(join(LOGS_DIR, "error.log"), {
+    maxSize: MAX_FILE_SIZE,
+    maxFiles: MAX_FILES,
+    formatter,
+  });
+
+  // Wrap the error file sink to only pass warning and error records through.
+  const ERROR_LEVELS = new Set<LogTapeLevel>(["warning", "error", "fatal"]);
+  const errorFileSink: Sink = (record) => {
+    if (ERROR_LEVELS.has(record.level)) errorBaseFileSink(record);
+  };
 
   const clientLogging = process.env.BAB_CLIENT_LOG?.toLowerCase() !== "false";
 
   const sinks: Record<string, Sink> = {
     stderr: stderrSink,
     mcpFile: mcpFileSink,
+    errorFile: errorFileSink,
   };
 
   if (clientLogging) {
@@ -131,12 +144,12 @@ export async function configureLogging(): Promise<void> {
       {
         category: ["bab", "mcp"],
         lowestLevel: level,
-        sinks: ["stderr", "mcpFile"],
+        sinks: ["stderr", "mcpFile", "errorFile"],
       },
       {
         category: ["bab", "client"],
         lowestLevel: level,
-        sinks: clientLogging ? ["stderr", "clientFile"] : ["stderr"],
+        sinks: clientLogging ? ["stderr", "clientFile", "errorFile"] : ["stderr", "errorFile"],
       },
       {
         category: ["logtape", "meta"],

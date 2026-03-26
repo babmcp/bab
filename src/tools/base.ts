@@ -70,8 +70,10 @@ export const ContinuationIdSchema = z
     "ID from a previous tool response to continue that conversation thread. Omit to start new.",
   );
 export const FilePathsSchema = z
-  .array(z.string().min(1))
-  .optional()
+  .preprocess(
+    (v) => (typeof v === "string" ? [v] : v),
+    z.array(z.string().min(1)).optional(),
+  )
   .describe(
     "File paths (absolute or relative to cwd) to embed as context. May be skipped if outside allowed directories or exceeds token budget.",
   );
