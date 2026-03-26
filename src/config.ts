@@ -46,7 +46,9 @@ const PositiveInt = z.string().regex(/^\d+$/u, "must be a positive integer").tra
 
 export const BabEnvSchema = z.object({
   BAB_EAGER_TOOLS: BoolEnv.optional(),
-  BAB_PERSIST: z.string().optional(),
+  BAB_PERSIST: BoolEnv.optional(),
+  BAB_PERSIST_TOOLS: CommaSeparatedList.optional(),
+  BAB_DISABLED_PERSIST_TOOLS: CommaSeparatedList.optional(),
   BAB_DISABLED_TOOLS: CommaSeparatedList.optional(),
   BAB_ENABLED_TOOLS: CommaSeparatedList.optional(),
   BAB_CLI_TIMEOUT_MS: PositiveInt.optional(),
@@ -173,15 +175,9 @@ export async function loadConfig(homeDirectory?: string): Promise<BabConfig> {
   // Validate known BAB_* keys via Zod schema (#7)
   const validated = validateBabEnv(env);
 
-  const persistEnabled = env.BAB_PERSIST?.toLowerCase() !== "false";
-  const enabledTools = new Set(
-    env.BAB_PERSIST_TOOLS ? env.BAB_PERSIST_TOOLS.split(",").map((s) => s.trim()).filter(Boolean) : [],
-  );
-  const disabledTools = new Set(
-    env.BAB_DISABLED_PERSIST_TOOLS
-      ? env.BAB_DISABLED_PERSIST_TOOLS.split(",").map((s) => s.trim()).filter(Boolean)
-      : [],
-  );
+  const persistEnabled = validated.BAB_PERSIST !== false;
+  const enabledTools = new Set(validated.BAB_PERSIST_TOOLS ?? []);
+  const disabledTools = new Set(validated.BAB_DISABLED_PERSIST_TOOLS ?? []);
 
   // #6: Lazy loading ON by default; BAB_EAGER_TOOLS=1 opts out
   const eagerTools = validated.BAB_EAGER_TOOLS === true;

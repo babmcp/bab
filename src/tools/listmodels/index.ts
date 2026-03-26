@@ -1,9 +1,7 @@
 import { z } from "zod/v4";
 
 import type { BabConfig } from "../../config";
-import { getBundledPluginsRoot } from "../../commands/shared";
-import { discoverPluginDirectories } from "../../delegate/discovery";
-import { loadPlugins } from "../../delegate/loader";
+import { getLoadedPlugins } from "../../delegate/plugin-cache";
 import type { ProviderRegistry } from "../../providers/registry";
 import type { RegisteredTool } from "../../server";
 
@@ -20,14 +18,7 @@ export function createListModelsTool(
     execute: async () => {
       const providerModels = await providerRegistry.listModels();
 
-      const bundledRoot = await getBundledPluginsRoot();
-      const [bundled, installed] = await Promise.all([
-        discoverPluginDirectories(bundledRoot),
-        discoverPluginDirectories(config.paths.pluginsDir),
-      ]);
-      const allLoaded = await loadPlugins([...bundled, ...installed]);
-      const byId = new Map(allLoaded.map((p) => [p.manifest.id, p]));
-      const plugins = [...byId.values()];
+      const plugins = await getLoadedPlugins(config);
 
       const pluginModels: Record<string, string[]> = {};
 

@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { afterAll, describe, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -23,6 +23,16 @@ function createConfig(env: Record<string, string> = {}): BabConfig {
 }
 
 describe("chat tool", () => {
+  const tempDirs: string[] = [];
+
+  afterAll(async () => {
+    for (const dir of tempDirs) {
+      try {
+        await rm(dir, { recursive: true, force: true });
+      } catch {}
+    }
+  });
+
   test("returns a response with embedded file metadata", async () => {
     const calls: Array<Record<string, unknown>> = [];
     const providerRegistry = new ProviderRegistry({
@@ -59,6 +69,7 @@ describe("chat tool", () => {
       providerRegistry,
     });
     const workingDirectory = await mkdtemp(join(process.cwd(), ".bab-test-chat-tool-"));
+    tempDirs.push(workingDirectory);
     const sourceFile = join(workingDirectory, "context.ts");
 
     await writeFile(sourceFile, "export const featureFlag = true;\n");
@@ -93,6 +104,7 @@ describe("chat tool", () => {
 
   test("rejects a working directory that is a file", async () => {
     const workingDirectory = await mkdtemp(join(tmpdir(), "bab-chat-file-"));
+    tempDirs.push(workingDirectory);
     const filePath = join(workingDirectory, "not-a-directory.txt");
 
     await writeFile(filePath, "content\n");

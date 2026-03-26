@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterAll, describe, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { BabConfig } from "../src/config";
@@ -23,6 +22,14 @@ function createConfig(env: Record<string, string> = {}): BabConfig {
 }
 
 describe("investigation tools", () => {
+  let analysisDirectory: string | undefined;
+
+  afterAll(async () => {
+    try {
+      if (analysisDirectory) await rm(analysisDirectory, { recursive: true, force: true });
+    } catch {}
+  });
+
   test("debug runs expert validation on a completed investigation", async () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createDebugTool({
@@ -74,7 +81,7 @@ describe("investigation tools", () => {
 
   test("analyze embeds files and reports analysis metadata", async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const analysisDirectory = await mkdtemp(join(process.cwd(), ".bab-test-analyze-"));
+    analysisDirectory = await mkdtemp(join(process.cwd(), ".bab-test-analyze-"));
     const analyzedFile = join(analysisDirectory, "module.ts");
 
     await writeFile(analyzedFile, "export const service = { enabled: true };\n");

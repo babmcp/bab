@@ -7,6 +7,7 @@ import { logger } from "../utils/logger";
 const FALLBACK_REPORTS_DIR = join(homedir(), ".config", "bab", "reports");
 
 /** Continuation IDs for which a persistence warning has already been emitted. */
+const MAX_WARNED_IDS = 500;
 const warnedIds = new Set<string>();
 
 export interface PersistReportModel {
@@ -209,6 +210,10 @@ export async function persistReport(input: PersistReportInput): Promise<void> {
     }
   } catch (error) {
     if (!warnedIds.has(continuationId)) {
+      if (warnedIds.size >= MAX_WARNED_IDS) {
+        const oldest = warnedIds.values().next().value;
+        if (oldest !== undefined) warnedIds.delete(oldest);
+      }
       warnedIds.add(continuationId);
       logger.warn("Failed to persist report", {
         continuationId,

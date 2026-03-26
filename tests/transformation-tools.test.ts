@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterAll, describe, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { BabConfig } from "../src/config";
@@ -23,6 +22,14 @@ function createConfig(env: Record<string, string> = {}): BabConfig {
 }
 
 describe("transformation tools", () => {
+  let tempDirectory: string | undefined;
+
+  afterAll(async () => {
+    try {
+      if (tempDirectory) await rm(tempDirectory, { recursive: true, force: true });
+    } catch {}
+  });
+
   test("refactor runs expert validation and preserves opportunity metadata", async () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createRefactorTool({
@@ -80,7 +87,7 @@ describe("transformation tools", () => {
 
   test("testgen produces a file-backed test plan with expert follow-up", async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const tempDirectory = await mkdtemp(join(process.cwd(), ".bab-test-testgen-"));
+    tempDirectory = await mkdtemp(join(process.cwd(), ".bab-test-testgen-"));
     const sourceFile = join(tempDirectory, "service.ts");
 
     await writeFile(sourceFile, "export async function loadUser(id: string) { return { id }; }\n");

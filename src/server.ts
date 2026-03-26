@@ -63,13 +63,14 @@ export function toToolError(error: unknown): ToolError {
   }
 
   if (error instanceof Error) {
+    const details: Record<string, unknown> = { name: error.name };
+    if (process.env.BAB_LOG_LEVEL?.toLowerCase() === "debug") {
+      details.stack = error.stack;
+    }
     return {
       type: "execution",
       message: error.message,
-      details: {
-        name: error.name,
-        stack: error.stack,
-      },
+      details,
       retryable: false,
     };
   }

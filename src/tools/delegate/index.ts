@@ -1,3 +1,8 @@
+import { realpathSync } from "node:fs";
+import { statSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { isAbsolute, resolve } from "node:path";
+
 import { z } from "zod/v4";
 
 import type { BabConfig } from "../../config";
@@ -8,6 +13,27 @@ import type { DelegateEvent, ToolOutput } from "../../types";
 import { mergeEnv } from "../../utils/env";
 import { getClientLogger } from "../../utils/logger";
 import { createToolError } from "../base";
+
+function validateWorkingDirectory(dir: string): string | undefined {
+  const resolved = isAbsolute(dir) ? dir : resolve(process.cwd(), dir);
+  try {
+    const real = realpathSync(resolved);
+    if (!statSync(real).isDirectory()) return "not a directory";
+    const cwd = realpathSync(process.cwd());
+    const home = homedir();
+    const tmp = resolve(tmpdir());
+    if (
+      real === cwd || real.startsWith(`${cwd}/`) ||
+      real === home || real.startsWith(`${home}/`) ||
+      real === tmp || real.startsWith(`${tmp}/`)
+    ) {
+      return undefined;
+    }
+    return "working_directory must be within the project root, home, or tmp";
+  } catch {
+    return "working_directory does not exist";
+  }
+}
 
 const MAX_OUTPUT_LENGTH = 20_000;
 const SUMMARY_PATTERN = /<SUMMARY>([\s\S]*?)<\/SUMMARY>/iu;
@@ -136,6 +162,14 @@ export function createDelegateTool(config: BabConfig): RegisteredTool {
         typeof args.working_directory === "string"
           ? args.working_directory
           : process.cwd();
+
+      const wdError = validateWorkingDirectory(workingDirectory);
+      if (wdError) {
+        return {
+          ok: false,
+          error: createToolError("validation", wdError, { working_directory: workingDirectory }),
+        };
+      }
 
       try {
         const loadedPlugins = await getLoadedPlugins(config);

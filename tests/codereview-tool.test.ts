@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterAll, describe, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { BabConfig } from "../src/config";
@@ -21,9 +20,17 @@ function createConfig(env: Record<string, string> = {}): BabConfig {
 }
 
 describe("codereview tool", () => {
+  let reviewDirectory: string | undefined;
+
+  afterAll(async () => {
+    try {
+      if (reviewDirectory) await rm(reviewDirectory, { recursive: true, force: true });
+    } catch {}
+  });
+
   test("embeds relevant files and runs expert validation on completion", async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const reviewDirectory = await mkdtemp(join(process.cwd(), ".bab-test-codereview-"));
+    reviewDirectory = await mkdtemp(join(process.cwd(), ".bab-test-codereview-"));
     const reviewedFile = join(reviewDirectory, "reviewed.ts");
 
     await writeFile(reviewedFile, "export function sum(a: number, b: number) { return a + b; }\n");
