@@ -2,6 +2,12 @@ import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 
 const MAX_CAPTURE_BYTES = 1_000_000;
 
+const RAW_CONCURRENCY = Number(process.env.BAB_MAX_CONCURRENT_PROCESSES);
+const DEFAULT_MAX_CONCURRENT =
+  Number.isFinite(RAW_CONCURRENCY) && RAW_CONCURRENCY > 0
+    ? RAW_CONCURRENCY
+    : 5;
+
 export interface ProcessRunOptions {
   args?: string[];
   command: string;
@@ -23,6 +29,15 @@ export interface ProcessRunResult {
 
 export class ProcessRunner {
   private activeProcesses = new Map<string, ChildProcessWithoutNullStreams>();
+  private readonly maxConcurrent: number;
+
+  constructor(maxConcurrent = DEFAULT_MAX_CONCURRENT) {
+    this.maxConcurrent = maxConcurrent;
+  }
+
+  get activeCount(): number {
+    return this.activeProcesses.size;
+  }
 
   async run(
     runId: string,
@@ -40,6 +55,13 @@ export class ProcessRunner {
 
     if (this.activeProcesses.has(runId)) {
       throw new Error(`Process already active for run ${runId}`);
+    }
+
+    if (this.activeProcesses.size >= this.maxConcurrent) {
+      throw new Error(
+        `Process concurrency limit reached (${this.maxConcurrent}). ` +
+          `Set BAB_MAX_CONCURRENT_PROCESSES to increase the limit.`,
+      );
     }
 
     const startedAt = Date.now();

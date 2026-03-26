@@ -27,8 +27,9 @@ function sanitizeOutput(content: string): {
     };
   }
 
+  const truncatedChars = withoutSummary.length - 18_000 - 2_000;
   return {
-    content: `${withoutSummary.slice(0, 18_000)}\n\n...[truncated]...\n\n${withoutSummary.slice(-2_000)}`,
+    content: `${withoutSummary.slice(0, 18_000)}\n\n...[truncated ${truncatedChars} chars]...\n\n${withoutSummary.slice(-2_000)}`,
     summary,
   };
 }

@@ -185,6 +185,7 @@ export class BabServer {
   }
 
   async sendToolListChanged(): Promise<void> {
+    if (!this.isConnected) return;
     await this.protocolServer.sendToolListChanged();
   }
 
@@ -198,15 +199,29 @@ export class BabServer {
     const entry = this.manifest.get(name);
     if (!entry) return null;
 
-    const promise = Promise.resolve(entry.factory()).then((tool) => {
-      this.registerTool(tool);
-      this.loadingPromises.delete(name);
-      return tool;
-    });
+    const promise = Promise.resolve()
+      .then(() => entry.factory())
+      .then((tool) => {
+        this.registerTool(tool);
+        return tool;
+      })
+      .catch((error) => {
+        logger.error("Failed to load tool from manifest", {
+          tool: name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      })
+      .finally(() => {
+        this.loadingPromises.delete(name);
+      });
 
-    this.loadingPromises.set(name, promise);
+    this.loadingPromises.set(name, promise as Promise<RegisteredTool>);
     const tool = await promise;
-    void this.sendToolListChanged();
+    if (tool) {
+      logger.info("Lazy tool loaded", { tool: name });
+      void this.sendToolListChanged();
+    }
     return tool;
   }
 

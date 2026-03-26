@@ -133,6 +133,64 @@ describe("delegate tool", () => {
     expect(result.value.metadata?.done_event_count).toBe(1);
   });
 
+  test("truncated output includes char count in marker", async () => {
+    const pluginsDir = await mkdtemp(join(tmpdir(), "bab-delegate-trunc-"));
+    const pluginDirectory = join(pluginsDir, "echo");
+
+    await mkdir(pluginDirectory, { recursive: true });
+    await writeFile(
+      join(pluginDirectory, "manifest.yaml"),
+      [
+        "id: echo",
+        "name: Echo Plugin",
+        "version: 1.0.0",
+        "command: echo",
+        "roles:",
+        "  - default",
+      ].join("\n"),
+    );
+    // Produce exactly 25_000 chars of output (exceeds 20_000 limit)
+    await writeFile(
+      join(pluginDirectory, "adapter.ts"),
+      [
+        "export default {",
+        "  async run(input) {",
+        "    const body = 'x'.repeat(25_000);",
+        "    return [",
+        "      {",
+        "        type: 'output',",
+        "        run_id: input.runId,",
+        "        provider_id: 'echo',",
+        "        timestamp: new Date().toISOString(),",
+        "        content: body,",
+        "        content_type: 'markdown',",
+        "      },",
+        "      {",
+        "        type: 'done',",
+        "        run_id: input.runId,",
+        "        provider_id: 'echo',",
+        "        timestamp: new Date().toISOString(),",
+        "        metadata: {},",
+        "      },",
+        "    ];",
+        "  },",
+        "};",
+      ].join("\n"),
+    );
+
+    const tool = createDelegateTool(createConfig(pluginsDir));
+    const result = await tool.execute({ cli_name: "echo", prompt: "hello" });
+
+    expect(result.ok).toBeTrue();
+    if (!result.ok) throw new Error("Expected success");
+
+    const content = result.value.content ?? "";
+    // Must include the truncation marker with a char count
+    expect(content).toMatch(/\.\.\.\[truncated \d+ chars\]\.\.\./);
+    // Total length must not exceed the limit
+    expect(content.length).toBeLessThanOrEqual(20_050);
+  });
+
   test("returns unknown-plugin errors", async () => {
     const pluginsDir = await mkdtemp(join(tmpdir(), "bab-delegate-missing-"));
     const tool = createDelegateTool(createConfig(pluginsDir));

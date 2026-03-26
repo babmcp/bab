@@ -251,6 +251,58 @@ describe("Lazy tool loading — integration", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Unit: tool load failure isolation
+// ---------------------------------------------------------------------------
+
+describe("Tool load failure isolation", () => {
+  test("a factory that throws does not prevent other tools from loading", async () => {
+    // Import the server internals to test loadFromManifest isolation directly
+    const { BabServer } = await import("../src/server");
+    const { z } = await import("zod/v4");
+
+    const server = new BabServer();
+
+    // Register one good tool in the manifest
+    const goodTool = {
+      name: "good-tool",
+      description: "Always works",
+      inputSchema: z.object({}),
+      execute: async () => ({ ok: true as const, value: { content: "ok", content_type: "text" as const, status: "success" as const, metadata: {} } }),
+    };
+
+    // Add a bad entry (throws) and good entry to the manifest
+    server.manifest.set("bad-tool", {
+      name: "bad-tool",
+      description: "Throws on load",
+      category: "info",
+      persist: "never",
+      factory: () => { throw new Error("factory explosion"); },
+    });
+    server.manifest.set("good-tool", {
+      name: "good-tool",
+      description: "Loads fine",
+      category: "info",
+      persist: "never",
+      factory: () => goodTool,
+    });
+
+    // Loading the bad tool should return null, not throw
+    const badResult = await server.loadFromManifest("bad-tool");
+    expect(badResult).toBeNull();
+
+    // Loading the good tool should still work
+    const goodResult = await server.loadFromManifest("good-tool");
+    expect(goodResult).not.toBeNull();
+    expect(goodResult?.name).toBe("good-tool");
+
+    // The bad tool should not appear in the tool registry
+    expect(server.toolRegistry.has("bad-tool")).toBeFalse();
+    // The good tool should be registered
+    expect(server.toolRegistry.has("good-tool")).toBeTrue();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Integration: context-size benchmark (T11)
 // ---------------------------------------------------------------------------
 

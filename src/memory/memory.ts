@@ -1,3 +1,4 @@
+import { logger } from "../utils/logger";
 import type { StorageAdapter } from "./interface";
 
 const DEFAULT_MAX_ENTRIES = 1000;
@@ -20,6 +21,10 @@ export class InMemoryStorageAdapter<T> implements StorageAdapter<T> {
 
       if (oldestKey !== undefined) {
         this.store.delete(oldestKey);
+        logger.warn("In-memory store evicted oldest entry — conversation context lost", {
+          evicted_key: oldestKey,
+          max_entries: this.maxEntries,
+        });
       }
     }
 
