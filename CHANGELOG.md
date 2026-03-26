@@ -8,17 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+## [0.1.3-20260326] - 2026-03-26
 
-- Add persistence layer for tool report storage.
+### Security
+
+- **H2**: `ProcessRunOptions.env` is now required — no implicit `process.env` leak to child processes.
+- **H1+I5**: API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `GITHUB_TOKEN`, `GH_TOKEN`) and `BAB_*` prefix stripped from delegate subprocess env.
+- **L2→MEDIUM**: Stack traces stripped from tool error responses unless `BAB_LOG_LEVEL=debug`.
+- **M5**: Validate `working_directory` in delegate tool (must exist, be a directory, within project/home/tmp).
+
+### Fixed
+
+- **H3**: Plugin cache clears `inflight` on rejection so transient failures are retried.
+- **M1**: `listmodels` tool now uses plugin cache instead of rediscovering on every call.
+- **M2**: Bound `warnedIds` set in persistence to 500 entries max.
+- **M3**: `BAB_PERSIST_TOOLS` and `BAB_DISABLED_PERSIST_TOOLS` validated through `BabEnvSchema`.
+- **M6**: Test temp directory cleanup in chat, codereview, investigation, and transformation test suites.
+- Fix `relevant_files` schema to accept a single string via `z.preprocess`.
+- Add dedicated `error.log` file for warnings and errors only.
+- Fix test accuracy: no-op assertions, buffer cap, YAML alias error match, unused imports.
 
 ### Other
 
+- Add persistence layer for tool report storage.
 - Gracefully skip missing files in embedFiles and clarify delegate role description.
 - Dynamic model inference in ProviderRegistry.
 - Dynamic model discovery via provider APIs.
 - Structured report format with frontmatter, summary, and multi-step appending.
-- Bump version to 0.1.2-20260325.
 
 ## [0.1.2-20260316] - 2026-03-16
 
