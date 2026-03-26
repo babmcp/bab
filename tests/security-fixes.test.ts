@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadConfig, parseEnvFile } from "../src/config";
+import { loadConfig } from "../src/config";
 import { loadPlugin, loadPlugins } from "../src/delegate/loader";
 import { ProcessRunner } from "../src/delegate/process-runner";
 import { resolveRole } from "../src/delegate/roles";
@@ -184,7 +184,7 @@ describe("S5: YAML alias limit", () => {
         directory: pluginDirectory,
         manifestPath: join(pluginDirectory, "manifest.yaml"),
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/alias/i);
   });
 });
 
@@ -340,7 +340,7 @@ describe("P3: ProcessRunner output buffer cap", () => {
       timeoutMs: 10_000,
     });
 
-    expect(result.stdout.length).toBeLessThanOrEqual(1_000_001);
+    expect(result.stdout.length).toBeLessThanOrEqual(1_000_000);
     expect(result.exitCode).toBe(0);
   });
 });

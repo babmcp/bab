@@ -76,42 +76,47 @@ describe("persistReport", () => {
     expect(files.some((f) => f.endsWith("-2.md"))).toBeTrue();
   });
 
-  test("emits one warning on write failure and not again", async () => {
-    const warnings: string[] = [];
-    const originalWarn = console.warn;
-
-    // Use a non-writable path to trigger failure
+  test("does not throw on write failure and handles it silently", async () => {
     const badRoot = "/dev/null/not-a-dir";
 
-    await persistReport(p("debug", "test", "cont-warn", "content", badRoot));
-    await persistReport(p("debug", "test", "cont-warn", "content", badRoot));
-    await persistReport(p("debug", "test", "cont-warn", "content", badRoot));
-
-    // Verify no throw (handled internally) and only one warning per continuation ID
-    // The dedup is internal — we just verify it doesn't throw
-    expect(true).toBeTrue();
-    console.warn = originalWarn;
-    void warnings;
+    // persistReport must never throw — errors are swallowed and warned once
+    const results = await Promise.allSettled([
+      persistReport(p("debug", "test", "cont-warn", "content", badRoot)),
+      persistReport(p("debug", "test", "cont-warn", "content", badRoot)),
+      persistReport(p("debug", "test", "cont-warn", "content", badRoot)),
+    ]);
+    expect(results.every((r) => r.status === "fulfilled")).toBeTrue();
   });
 
   test("different continuation IDs each get their own warning", async () => {
     const badRoot = "/dev/null/not-a-dir";
-    // Should not throw regardless of continuation IDs
-    await persistReport(p("debug", "test", "cont-a", "content", badRoot));
-    await persistReport(p("debug", "test", "cont-b", "content", badRoot));
-    expect(true).toBeTrue();
+    // Each unique continuation ID should be handled independently without throwing
+    const results = await Promise.allSettled([
+      persistReport(p("debug", "test", "cont-a", "content", badRoot)),
+      persistReport(p("debug", "test", "cont-b", "content", badRoot)),
+    ]);
+    expect(results.every((r) => r.status === "fulfilled")).toBeTrue();
   });
 
   test("uses fallback reports dir when no project root provided", async () => {
-    // Just verify it doesn't throw — fallback dir is ~/.config/bab/reports
-    // We don't assert the path to avoid polluting the real filesystem in tests
-    let threw = false;
-    try {
-      await persistReport(p("debug", "test fallback", "cont-fallback", "content"));
-    } catch {
-      threw = true;
+    // Verify it doesn't throw; the fallback dir is ~/.config/bab/reports.
+    // We pass a unique continuation ID so we can check the file was written there.
+    const continuationId = `test-fallback-${Date.now()}`;
+    const { homedir } = await import("node:os");
+    const fallbackDir = join(homedir(), ".config", "bab", "reports", ".bab", "debug");
+
+    await persistReport(p("debug", "test fallback", continuationId, "fallback content"));
+
+    // Verify the file was written to the fallback directory
+    const files = await readdir(fallbackDir).catch(() => []);
+    const written = files.some((f) => f.includes("test-fallback"));
+    expect(written).toBeTrue();
+
+    // Cleanup — remove the file we wrote to avoid polluting the real filesystem
+    const { rm } = await import("node:fs/promises");
+    for (const file of files.filter((f) => f.includes("test-fallback"))) {
+      await rm(join(fallbackDir, file), { force: true });
     }
-    expect(threw).toBeFalse();
   });
 });
 
