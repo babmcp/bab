@@ -9,7 +9,7 @@ import {
 } from "ai";
 
 import type { BabConfig } from "../config";
-import type { ModelInfo, ProviderId } from "../types";
+import type { ModelInfo, ProviderId, Result, ToolError } from "../types";
 import { estimateTokenCount } from "../utils/tokens";
 import { discoverModels, getAllCachedModels } from "./model-discovery";
 
@@ -46,9 +46,16 @@ interface LanguageModelProvider {
 
 type ProviderFactory = LanguageModelProvider;
 
+// Static model registry — manually curated fallback entries.
+// Scores are relative quality tiers (0-100) set by hand; update here when
+// a model is superseded or pricing changes significantly.
+// For providers with dynamic discovery (Google, OpenAI, OpenRouter), these
+// entries act as overrides that take priority over discovered models. Only
+// remove a static entry when you have confirmed dynamic discovery returns
+// equivalent data for that model.
 const STATIC_MODEL_REGISTRY: ReadonlyArray<ModelInfo> = [
   {
-    id: "gemini-2.5-pro",
+    id: "gemini-2.5-pro", // last_verified: 2026-03-26
     provider: "google",
     display_name: "Gemini 2.5 Pro",
     capabilities: {
@@ -62,7 +69,7 @@ const STATIC_MODEL_REGISTRY: ReadonlyArray<ModelInfo> = [
     },
   },
   {
-    id: "gpt-5.2",
+    id: "gpt-5.2", // last_verified: 2026-03-26
     provider: "openai",
     display_name: "GPT-5.2",
     capabilities: {
@@ -76,7 +83,7 @@ const STATIC_MODEL_REGISTRY: ReadonlyArray<ModelInfo> = [
     },
   },
   {
-    id: "claude-sonnet-4-20250514",
+    id: "claude-sonnet-4-20250514", // last_verified: 2026-03-26
     provider: "anthropic",
     display_name: "Claude Sonnet 4",
     capabilities: {
@@ -90,7 +97,7 @@ const STATIC_MODEL_REGISTRY: ReadonlyArray<ModelInfo> = [
     },
   },
   {
-    id: "openai/gpt-5.2",
+    id: "openai/gpt-5.2", // last_verified: 2026-03-26
     provider: "openrouter",
     display_name: "OpenRouter GPT-5.2",
     capabilities: {
@@ -104,7 +111,7 @@ const STATIC_MODEL_REGISTRY: ReadonlyArray<ModelInfo> = [
     },
   },
   {
-    id: "custom/default",
+    id: "custom/default", // last_verified: 2026-03-26
     provider: "custom",
     display_name: "Custom Default Model",
     capabilities: {
@@ -247,49 +254,78 @@ export class ProviderRegistry {
     prompt: string,
     systemPrompt?: string,
     options: GenerateTextOptions = {},
-  ): Promise<GenerateTextResult> {
+  ): Promise<Result<GenerateTextResult, ToolError>> {
     const modelInfo = await this.getModelInfo(modelIdOrAlias);
 
     if (!modelInfo) {
-      throw new Error(`Unknown model: ${modelIdOrAlias}`);
+      return {
+        ok: false,
+        error: {
+          type: "not_found",
+          message: `Unknown model: ${modelIdOrAlias}`,
+          retryable: false,
+        },
+      };
     }
 
     if (!this.isProviderConfigured(modelInfo.provider)) {
-      throw new Error(`Provider not configured: ${modelInfo.provider}`);
+      const envVar = PROVIDER_ENV_CONFIG[modelInfo.provider].apiKey;
+      return {
+        ok: false,
+        error: {
+          type: "configuration",
+          message: `Provider not configured: ${modelInfo.provider}. Set ${envVar} to enable it.`,
+          retryable: false,
+        },
+      };
     }
 
-    const provider = this.getProviderFactory(modelInfo.provider);
-    const model = provider.languageModel(modelInfo.id) as LanguageModel;
-    const providerOptions = this.buildProviderOptions(
-      modelInfo.provider,
-      options.thinkingMode,
-    );
-    const result = await this.generateTextFn({
-      abortSignal: options.abortSignal,
-      maxOutputTokens: options.maxOutputTokens,
-      model,
-      prompt,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...(Object.keys(providerOptions).length > 0 && { providerOptions: providerOptions as any }),
-      system: systemPrompt,
-      temperature: options.temperature,
-    });
+    try {
+      const provider = this.getProviderFactory(modelInfo.provider);
+      const model = provider.languageModel(modelInfo.id) as LanguageModel;
+      const providerOptions = this.buildProviderOptions(
+        modelInfo.provider,
+        options.thinkingMode,
+      );
+      const result = await this.generateTextFn({
+        abortSignal: options.abortSignal,
+        maxOutputTokens: options.maxOutputTokens,
+        model,
+        prompt,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(Object.keys(providerOptions).length > 0 && { providerOptions: providerOptions as any }),
+        system: systemPrompt,
+        temperature: options.temperature,
+      });
 
-    const inputTokens = result.usage?.inputTokens ?? estimateTokenCount(prompt);
-    const outputTokens =
-      result.usage?.outputTokens ?? estimateTokenCount(result.text);
+      const inputTokens = result.usage?.inputTokens ?? estimateTokenCount(prompt);
+      const outputTokens =
+        result.usage?.outputTokens ?? estimateTokenCount(result.text);
 
-    return {
-      model: modelInfo.id,
-      provider: modelInfo.provider,
-      text: result.text,
-      usage: {
-        input_tokens: inputTokens,
-        output_tokens: outputTokens,
-        total_tokens:
-          result.usage?.totalTokens ?? inputTokens + outputTokens,
-      },
-    };
+      return {
+        ok: true,
+        value: {
+          model: modelInfo.id,
+          provider: modelInfo.provider,
+          text: result.text,
+          usage: {
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+            total_tokens:
+              result.usage?.totalTokens ?? inputTokens + outputTokens,
+          },
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          type: "execution",
+          message: error instanceof Error ? error.message : String(error),
+          retryable: true,
+        },
+      };
+    }
   }
 
   private buildProviderOptions(

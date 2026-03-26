@@ -135,7 +135,7 @@ describe("shouldPersistTool (via BabServer)", () => {
     const toolContext = { conversationStore, modelGateway, providerRegistry };
 
     const server = new BabServer();
-    server.manifest = buildToolManifest(toolContext, providerRegistry, config);
+    server.setManifest(buildToolManifest(toolContext, providerRegistry, config));
     server.config = config;
 
     expect(server.shouldPersistTool("analyze")).toBeTrue();
@@ -161,7 +161,7 @@ describe("shouldPersistTool (via BabServer)", () => {
     const toolContext = { conversationStore, modelGateway, providerRegistry };
 
     const server = new BabServer();
-    server.manifest = buildToolManifest(toolContext, providerRegistry, config);
+    server.setManifest(buildToolManifest(toolContext, providerRegistry, config));
     server.config = config;
 
     expect(server.shouldPersistTool("version")).toBeFalse();
@@ -188,7 +188,7 @@ describe("shouldPersistTool (via BabServer)", () => {
     const toolContext = { conversationStore, modelGateway, providerRegistry };
 
     const server = new BabServer();
-    server.manifest = buildToolManifest(toolContext, providerRegistry, config);
+    server.setManifest(buildToolManifest(toolContext, providerRegistry, config));
     server.config = config;
 
     expect(server.shouldPersistTool("analyze")).toBeFalse();
@@ -214,7 +214,7 @@ describe("shouldPersistTool (via BabServer)", () => {
     const toolContext = { conversationStore, modelGateway, providerRegistry };
 
     const server = new BabServer();
-    server.manifest = buildToolManifest(toolContext, providerRegistry, config);
+    server.setManifest(buildToolManifest(toolContext, providerRegistry, config));
     server.config = config;
 
     expect(server.shouldPersistTool("chat")).toBeTrue();
@@ -240,7 +240,7 @@ describe("shouldPersistTool (via BabServer)", () => {
     const toolContext = { conversationStore, modelGateway, providerRegistry };
 
     const server = new BabServer();
-    server.manifest = buildToolManifest(toolContext, providerRegistry, config);
+    server.setManifest(buildToolManifest(toolContext, providerRegistry, config));
     server.config = config;
 
     expect(server.shouldPersistTool("tracer")).toBeFalse();

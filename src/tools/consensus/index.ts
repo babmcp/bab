@@ -13,6 +13,7 @@ import {
   remainingConversationTurns,
   recordConversationTurn,
   selectModel,
+  toolFailureResult,
   type ToolContext,
   type ToolExecutionResult,
 } from "../base";
@@ -262,7 +263,7 @@ export function createConsensusTool(context: ToolContext): RegisteredTool {
         let nextStepRequired = !useParallel && currentModelIndex < request.models.length;
 
         if (!request.next_step_required || useParallel) {
-          synthesis = await context.providerRegistry.generateText(
+          const synthResult = await context.providerRegistry.generateText(
             synthesisModel.id,
             buildSynthesisPrompt(
               request,
@@ -275,6 +276,10 @@ export function createConsensusTool(context: ToolContext): RegisteredTool {
               temperature: request.temperature,
             },
           );
+          if (!synthResult.ok) {
+            return { ok: false, error: createToolError("execution", synthResult.error.message) };
+          }
+          synthesis = synthResult.value;
           consultedResults.push(synthesis);
           responseText = synthesis.text;
           nextStepRequired = false;
@@ -315,16 +320,13 @@ export function createConsensusTool(context: ToolContext): RegisteredTool {
 
         return createSuccessToolResult(toolOutput);
       } catch (error) {
-        return {
-          error: createToolError(
-            "execution",
-            error instanceof Error
-              ? error.message
-              : "Consensus tool execution failed",
-            error,
-          ),
-          ok: false,
-        };
+        return toolFailureResult(
+          "execution",
+          error instanceof Error
+            ? error.message
+            : "Consensus tool execution failed",
+          error,
+        );
       }
     },
     inputSchema: ConsensusInputSchema,

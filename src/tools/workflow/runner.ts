@@ -117,25 +117,30 @@ export class WorkflowRunner<
         `USER STEP ${parsedRequest.step_number}\n${prompt}`,
       );
 
-      const aiResult = delegateModelId
-        ? await this.config.context.modelGateway.query(
-            delegateModelId,
-            prompt,
-            this.config.systemPrompt,
-            {
-              temperature: parsedRequest.temperature,
-              toolName: this.config.name,
-            },
-          )
-        : await this.config.context.providerRegistry.generateText(
-            selectedModel.id,
-            prompt,
-            this.config.systemPrompt,
-            {
-              maxOutputTokens: this.config.maxOutputTokens,
-              temperature: parsedRequest.temperature,
-            },
-          );
+      let aiResult: GenerateTextResult;
+      if (delegateModelId) {
+        aiResult = await this.config.context.modelGateway.query(
+          delegateModelId,
+          prompt,
+          this.config.systemPrompt,
+          {
+            temperature: parsedRequest.temperature,
+            toolName: this.config.name,
+          },
+        );
+      } else {
+        const res = await this.config.context.providerRegistry.generateText(
+          selectedModel.id,
+          prompt,
+          this.config.systemPrompt,
+          {
+            maxOutputTokens: this.config.maxOutputTokens,
+            temperature: parsedRequest.temperature,
+          },
+        );
+        if (!res.ok) throw new Error(res.error.message);
+        aiResult = res.value;
+      }
 
       let expertAnalysis: GenerateTextResult | undefined;
 
@@ -152,25 +157,29 @@ export class WorkflowRunner<
             aiResult.text,
           ].join("\n\n");
 
-        expertAnalysis = delegateModelId
-          ? await this.config.context.modelGateway.query(
-              delegateModelId,
-              expertPrompt,
-              this.config.systemPrompt,
-              {
-                temperature: parsedRequest.temperature,
-                toolName: this.config.name,
-              },
-            )
-          : await this.config.context.providerRegistry.generateText(
-              selectedModel.id,
-              expertPrompt,
-              this.config.systemPrompt,
-              {
-                maxOutputTokens: this.config.maxOutputTokens,
-                temperature: parsedRequest.temperature,
-              },
-            );
+        if (delegateModelId) {
+          expertAnalysis = await this.config.context.modelGateway.query(
+            delegateModelId,
+            expertPrompt,
+            this.config.systemPrompt,
+            {
+              temperature: parsedRequest.temperature,
+              toolName: this.config.name,
+            },
+          );
+        } else {
+          const res = await this.config.context.providerRegistry.generateText(
+            selectedModel.id,
+            expertPrompt,
+            this.config.systemPrompt,
+            {
+              maxOutputTokens: this.config.maxOutputTokens,
+              temperature: parsedRequest.temperature,
+            },
+          );
+          if (!res.ok) throw new Error(res.error.message);
+          expertAnalysis = res.value;
+        }
       }
 
       const payload = this.config.formatPayload({

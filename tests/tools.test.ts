@@ -68,6 +68,9 @@ describe("utility tools", () => {
 });
 
 describe("delegate tool", () => {
+  beforeEach(() => {
+    invalidatePluginCache();
+  });
   afterEach(() => {
     invalidatePluginCache();
   });

@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CORE_TOOL_NAMES } from "../src/server";
+import { CORE_TOOL_NAMES } from "../src/bootstrap";
 import { type BabTestHarness, createBabTestHarness } from "./harness";
 
 // ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ async function createStubPlugin(
 
 describe("Bab MCP server integration", () => {
   test("starts, lists core tools, and shuts down cleanly", async () => {
-    const harness = await createBabTestHarness();
+    const harness = await createBabTestHarness([], { BAB_EAGER_TOOLS: "1" });
     activeHarnesses.push(harness);
 
     const result = await harness.listTools();

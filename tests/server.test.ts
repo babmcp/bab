@@ -6,7 +6,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
 
-import { BabServer, parseDisabledTools } from "../src/server";
+import { BabServer } from "../src/server";
+import { parseDisabledTools } from "../src/bootstrap";
 
 type ToolContent = CallToolResult["content"][number];
 type TextBlock = Extract<ToolContent, { type: "text" }>;

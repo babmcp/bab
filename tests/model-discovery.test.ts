@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { clearDiscoveryCache, discoverModels, getCachedModels } from "../src/providers/model-discovery";
+import { ModelGateway } from "../src/providers/model-gateway";
+import { invalidatePluginCache } from "../src/delegate/plugin-cache";
+import type { ProviderRegistry } from "../src/providers/registry";
 
 const originalFetch = globalThis.fetch;
 
@@ -158,5 +161,79 @@ describe("discoverModels", () => {
 
     expect(cached).toHaveLength(1);
     expect(cached[0]?.id).toBe("gpt-4o");
+  });
+});
+
+describe("ModelGateway delegate routing", () => {
+  afterEach(() => invalidatePluginCache());
+
+  test("routes pluginId/modelName to delegate path, not SDK generateText", async () => {
+    const generateTextMock = mock(() =>
+      Promise.resolve({
+        model: "sdk-model",
+        provider: "openai" as const,
+        text: "sdk response",
+        usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
+      }),
+    );
+
+    const mockRegistry = {
+      getModelInfo: mock(() => Promise.resolve(undefined)),
+      listModels: mock(() => Promise.resolve([])),
+      generateText: generateTextMock,
+      isProviderConfigured: mock(() => false),
+    } as unknown as ProviderRegistry;
+
+    const config = {
+      env: {},
+      lazyTools: false,
+      paths: {
+        baseDir: "/tmp",
+        envFile: "/tmp/.env",
+        pluginsDir: "/tmp/nonexistent-plugins",
+        promptsDir: "/tmp/prompts",
+      },
+    };
+
+    // Ensure plugin cache is fresh (no stale data)
+    invalidatePluginCache();
+
+    const gateway = new ModelGateway(mockRegistry, config);
+
+    // Query with pluginId/modelName format — should route to delegate path,
+    // which will fail because no plugin "fake-plugin" is installed
+    await expect(
+      gateway.query("fake-plugin/gpt-4o", "Hello", "System prompt"),
+    ).rejects.toThrow('Plugin "fake-plugin" is not installed');
+
+    // The critical assertion: SDK generateText should NOT have been called
+    expect(generateTextMock).not.toHaveBeenCalled();
+  });
+
+  test("throws descriptive error for unknown model without slash", async () => {
+    const mockRegistry = {
+      getModelInfo: mock(() => Promise.resolve(undefined)),
+      listModels: mock(() => Promise.resolve([])),
+      generateText: mock(() => Promise.resolve()),
+      isProviderConfigured: mock(() => false),
+    } as unknown as ProviderRegistry;
+
+    const config = {
+      env: {},
+      lazyTools: false,
+      paths: {
+        baseDir: "/tmp",
+        envFile: "/tmp/.env",
+        pluginsDir: "/tmp/nonexistent-plugins",
+        promptsDir: "/tmp/prompts",
+      },
+    };
+
+    const gateway = new ModelGateway(mockRegistry, config);
+
+    // No slash — should fail with "not found in SDK registry" message
+    await expect(
+      gateway.query("nonexistent-model", "Hello"),
+    ).rejects.toThrow("not found in SDK registry");
   });
 });

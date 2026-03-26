@@ -8,7 +8,7 @@ import { runRemoveCommand as executeRemoveCommand } from "./commands/remove";
 import { isBinaryInstall, runSelfUpdate } from "./commands/selfupdate";
 import { loadConfig } from "./config";
 import { validatePluginDirectory } from "./plugin-sdk/conformance";
-import { main as startServer } from "./server";
+import { main as startServer } from "./bootstrap";
 import { VERSION } from "./version";
 
 interface WritableLike {

@@ -68,18 +68,21 @@ export function createToolsTool(server: BabServer): RegisteredTool {
           namesToLoad = activate ?? [];
         }
 
-        await Promise.all(
-          namesToLoad.map(async (name) => {
-            if (server.toolRegistry.has(name)) {
-              already_loaded.push(name);
-              return;
-            }
-            const tool = await server.loadFromManifest(name);
-            if (tool) {
-              loaded.push(name);
-            }
-          }),
-        );
+        // Separate already-loaded from those that need loading
+        const toLoad: string[] = [];
+        for (const name of namesToLoad) {
+          if (server.toolRegistry.has(name)) {
+            already_loaded.push(name);
+          } else {
+            toLoad.push(name);
+          }
+        }
+
+        // Batch load: single listChanged notification for all newly loaded tools
+        const batchLoaded = await server.batchLoadFromManifest(toLoad);
+        for (const tool of batchLoaded) {
+          loaded.push(tool.name);
+        }
       }
 
       const tools = buildListing(server);

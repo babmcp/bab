@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { BabConfig } from "../src/config";
-import { BabServer, registerCoreTools } from "../src/server";
+import { BabServer } from "../src/server";
+import { registerCoreTools } from "../src/bootstrap";
 import {
   generateSkillContent,
   STATIC_TOOL_NAMES,

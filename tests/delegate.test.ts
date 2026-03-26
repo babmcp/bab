@@ -1,10 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { discoverPluginDirectories } from "../src/delegate/discovery";
 import { loadPlugin, loadPlugins } from "../src/delegate/loader";
+import { getLoadedPlugins, invalidatePluginCache } from "../src/delegate/plugin-cache";
 import { ProcessRunner } from "../src/delegate/process-runner";
 import { resolveRole } from "../src/delegate/roles";
 
@@ -196,6 +197,63 @@ describe("delegate role resolution", () => {
 
     expect(resolvedRole.source).toBe("built_in");
     expect(resolvedRole.prompt).toContain("external CLI agent");
+  });
+});
+
+describe("plugin-cache race conditions", () => {
+  beforeEach(() => { invalidatePluginCache(); });
+  afterEach(() => { invalidatePluginCache(); });
+
+  test("concurrent invalidate and load does not return stale data", async () => {
+    const pluginsRoot = await mkdtemp(join(tmpdir(), "bab-cache-race-"));
+    const pluginDir = join(pluginsRoot, "race-plugin");
+    await mkdir(pluginDir, { recursive: true });
+    await writeFile(
+      join(pluginDir, "manifest.yaml"),
+      [
+        "id: race-plugin",
+        "name: Race Plugin",
+        "version: 1.0.0",
+        "command: echo",
+        "roles:",
+        "  - default",
+      ].join("\n"),
+    );
+
+    const config = {
+      env: {},
+      lazyTools: false,
+      paths: {
+        baseDir: "/tmp",
+        envFile: "/tmp/.env",
+        pluginsDir: pluginsRoot,
+        promptsDir: "/tmp/prompts",
+      },
+    };
+
+    // Warm the cache
+    invalidatePluginCache();
+    const initial = await getLoadedPlugins(config);
+    expect(initial.length).toBeGreaterThanOrEqual(1);
+    const racePlugin = initial.find((p) => p.manifest.id === "race-plugin");
+    expect(racePlugin).toBeDefined();
+
+    // Concurrently invalidate and reload — should never get stale/undefined results
+    const results = await Promise.all([
+      (invalidatePluginCache(), getLoadedPlugins(config)),
+      getLoadedPlugins(config),
+      (invalidatePluginCache(), getLoadedPlugins(config)),
+    ]);
+
+    for (const result of results) {
+      expect(Array.isArray(result)).toBe(true);
+      // Each result should contain the race-plugin (fresh load)
+      const found = result.find((p) => p.manifest.id === "race-plugin");
+      expect(found).toBeDefined();
+    }
+
+    // Cleanup
+    invalidatePluginCache();
   });
 });
 

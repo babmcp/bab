@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -156,7 +156,7 @@ async function findExistingReport(
     for (const file of files) {
       if (!file.endsWith(".md")) continue;
       const filePath = join(dir, file);
-      const content = await readFile(filePath, "utf8");
+      const content = await Bun.file(filePath).text();
       if (content.includes(`continuation_id: ${continuationId}`)) {
         return filePath;
       }
@@ -186,7 +186,7 @@ export async function persistReport(input: PersistReportInput): Promise<void> {
     const existingPath = await findExistingReport(toolName, continuationId, input.projectRoot);
 
     if (existingPath) {
-      const existing = await readFile(existingPath, "utf8");
+      const existing = await Bun.file(existingPath).text();
       let maxStep = 1;
       for (const m of existing.matchAll(/^## Step (\d+):/gmu)) {
         const n = Number(m[1]);
@@ -198,13 +198,13 @@ export async function persistReport(input: PersistReportInput): Promise<void> {
       if (input.expertContent) {
         appended.push("", "### Expert Validation", "", input.expertContent.trim());
       }
-      await writeFile(existingPath, appended.join("\n"), "utf8");
+      await Bun.write(existingPath, appended.join("\n"));
       logger.debug("Persistence report step appended", { continuationId, path: existingPath, step: nextStep, tool: toolName });
     } else {
       const reportContent = formatReport(input);
       const filename = buildFilename(input.inputText, continuationId);
       const targetPath = await resolveTargetPath(toolName, filename, input.projectRoot);
-      await writeFile(targetPath, reportContent, "utf8");
+      await Bun.write(targetPath, reportContent);
       logger.debug("Persistence report written", { continuationId, path: targetPath, tool: toolName });
     }
   } catch (error) {

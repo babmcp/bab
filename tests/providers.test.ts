@@ -115,16 +115,19 @@ describe("ProviderRegistry", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.prompt).toBe("hello");
     expect(calls[0]?.system).toBe("system text");
-    expect(result).toEqual({
-      model: "gpt-5.2",
-      provider: "openai",
-      text: "hello back",
-      usage: {
-        input_tokens: 12,
-        output_tokens: 4,
-        total_tokens: 16,
-      },
-    });
+    expect(result.ok).toBeTrue();
+    if (result.ok) {
+      expect(result.value).toEqual({
+        model: "gpt-5.2",
+        provider: "openai",
+        text: "hello back",
+        usage: {
+          input_tokens: 12,
+          output_tokens: 4,
+          total_tokens: 16,
+        },
+      });
+    }
   });
 
   test("infers google for unknown gemini-* model when configured", async () => {
@@ -199,13 +202,46 @@ describe("ProviderRegistry", () => {
     expect(model?.capabilities.score).toBe(100);
   });
 
-  test("rejects generateText when provider is not configured", async () => {
+  test("returns error Result when provider is not configured", async () => {
     const registry = new ProviderRegistry({
       config: createConfig(),
     });
 
-    await expect(registry.generateText("gpt-5.2", "hello")).rejects.toThrow(
-      "Provider not configured: openai",
-    );
+    const result = await registry.generateText("gpt-5.2", "hello");
+    expect(result.ok).toBeFalse();
+    if (!result.ok) {
+      expect(result.error.type).toBe("configuration");
+      expect(result.error.message).toContain("Provider not configured: openai");
+      expect(result.error.message).toContain("OPENAI_API_KEY");
+    }
+  });
+
+  test("returns not_found error for unknown model", async () => {
+    const registry = new ProviderRegistry({
+      config: createConfig(),
+    });
+
+    const result = await registry.generateText("nonexistent-model", "hello");
+    expect(result.ok).toBeFalse();
+    if (!result.ok) {
+      expect(result.error.type).toBe("not_found");
+      expect(result.error.message).toContain("Unknown model");
+    }
+  });
+
+  test("with no API keys configured, zero models available and generateText returns error", async () => {
+    const registry = new ProviderRegistry({
+      config: createConfig(),
+    });
+
+    const models = await registry.listModels();
+    expect(models).toHaveLength(0);
+
+    const result = await registry.generateText("gpt-5.2", "hello");
+    expect(result.ok).toBeFalse();
+    if (!result.ok) {
+      expect(result.error.type).toBe("configuration");
+      expect(result.error.message).toContain("OPENAI_API_KEY");
+    }
   });
 });

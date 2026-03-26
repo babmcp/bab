@@ -100,25 +100,30 @@ export function createSimpleTool<
           `USER\n${prompt}`,
         );
 
-        const aiResult = delegateModelId
-          ? await context.modelGateway.query(
-              delegateModelId,
-              prompt,
-              systemPrompt,
-              {
-                temperature: request.temperature,
-                toolName: name,
-              },
-            )
-          : await context.providerRegistry.generateText(
-              selectedModel.id,
-              prompt,
-              systemPrompt,
-              {
-                maxOutputTokens,
-                temperature: request.temperature,
-              },
-            );
+        let aiResult: GenerateTextResult;
+        if (delegateModelId) {
+          aiResult = await context.modelGateway.query(
+            delegateModelId,
+            prompt,
+            systemPrompt,
+            {
+              temperature: request.temperature,
+              toolName: name,
+            },
+          );
+        } else {
+          const res = await context.providerRegistry.generateText(
+            selectedModel.id,
+            prompt,
+            systemPrompt,
+            {
+              maxOutputTokens,
+              temperature: request.temperature,
+            },
+          );
+          if (!res.ok) throw new Error(res.error.message);
+          aiResult = res.value;
+        }
 
         await recordConversationTurn(
           context.conversationStore,

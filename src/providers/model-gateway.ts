@@ -38,10 +38,12 @@ export class ModelGateway {
     const modelInfo = await this.providerRegistry.getModelInfo(modelId);
 
     if (modelInfo) {
-      return this.providerRegistry.generateText(modelId, prompt, systemPrompt, {
+      const result = await this.providerRegistry.generateText(modelId, prompt, systemPrompt, {
         temperature: options.temperature,
         thinkingMode: options.thinkingMode,
       });
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value;
     }
 
     // Fall back to delegate pipeline: expect "pluginId/modelName"

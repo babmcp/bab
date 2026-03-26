@@ -381,6 +381,59 @@ describe("downloadAndInstall", () => {
     expect(content).toBe("old binary");
   });
 
+  test("rolls back when installed binary fails version check", async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), "bab-install-"));
+    const targetPath = join(tmpDir, "bab");
+    const originalContent = "#!/bin/sh\necho original\n";
+    await writeFile(targetPath, originalContent);
+
+    // Binary that fails --version (exit 1)
+    const badBinary = "#!/bin/sh\nexit 1\n";
+    const hash = new Bun.CryptoHasher("sha256")
+      .update(new TextEncoder().encode(badBinary))
+      .digest("hex");
+    const checksumContent = `${hash}  bab-darwin-arm64\n`;
+
+    let callCount = 0;
+    const fakeFetch = mockFetch(async () => {
+      callCount++;
+      if (callCount === 1) {
+        return new Response(badBinary, {
+          status: 200,
+          headers: { "Content-Length": String(badBinary.length) },
+        });
+      }
+      return new Response(checksumContent, { status: 200 });
+    });
+
+    const stderr = {
+      output: "",
+      write(s: string) {
+        this.output += s;
+      },
+    };
+
+    const result = await downloadAndInstall({
+      assetName: "bab-darwin-arm64",
+      checksumUrl:
+        "https://github.com/babmcp/bab/releases/download/v1.0.0/checksums.sha256",
+      fetch: fakeFetch,
+      stderr,
+      targetPath,
+      url: "https://github.com/babmcp/bab/releases/download/v1.0.0/bab-darwin-arm64",
+      version: "1.0.0",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("failed verification");
+    }
+
+    // Original binary should be restored via rollback
+    const content = await Bun.file(targetPath).text();
+    expect(content).toBe(originalContent);
+  });
+
   test("aborts when no checksum available", async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), "bab-install-"));
     const targetPath = join(tmpDir, "bab");

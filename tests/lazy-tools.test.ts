@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { ALWAYS_LOADED_TOOLS } from "../src/tools/manifest";
-import { CORE_TOOL_NAMES, LAZY_MODE_TOOL_NAMES } from "../src/server";
+import { CORE_TOOL_NAMES, LAZY_MODE_TOOL_NAMES } from "../src/bootstrap";
 import { type BabTestHarness, createBabTestHarness } from "./harness";
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ describe("Tool manifest", () => {
 
 describe("Lazy tool loading — integration", () => {
   test("lazy mode registers only always-loaded tools + tools meta-tool", async () => {
-    const harness = await createBabTestHarness([], { BAB_LAZY_TOOLS: "1" });
+    const harness = await createBabTestHarness();
     activeHarnesses.push(harness);
 
     const result = await harness.listTools();
@@ -71,7 +71,7 @@ describe("Lazy tool loading — integration", () => {
   });
 
   test("tools() lists all available tools with loaded status", async () => {
-    const harness = await createBabTestHarness([], { BAB_LAZY_TOOLS: "1" });
+    const harness = await createBabTestHarness();
     activeHarnesses.push(harness);
 
     const result = await harness.callTool({ name: "tools", arguments: {} });
@@ -100,7 +100,7 @@ describe("Lazy tool loading — integration", () => {
   });
 
   test("tools({ activate }) loads specific tools and sends list_changed", async () => {
-    const harness = await createBabTestHarness([], { BAB_LAZY_TOOLS: "1" });
+    const harness = await createBabTestHarness();
     activeHarnesses.push(harness);
 
     // Before: chat not in tool list
@@ -133,7 +133,7 @@ describe("Lazy tool loading — integration", () => {
   });
 
   test("tools({ activate_category }) loads all tools in a category", async () => {
-    const harness = await createBabTestHarness([], { BAB_LAZY_TOOLS: "1" });
+    const harness = await createBabTestHarness();
     activeHarnesses.push(harness);
 
     const result = await harness.callTool({
@@ -152,7 +152,7 @@ describe("Lazy tool loading — integration", () => {
   });
 
   test("tools({ activate_all }) loads all tools", async () => {
-    const harness = await createBabTestHarness([], { BAB_LAZY_TOOLS: "1" });
+    const harness = await createBabTestHarness();
     activeHarnesses.push(harness);
 
     await harness.callTool({
@@ -169,7 +169,7 @@ describe("Lazy tool loading — integration", () => {
   });
 
   test("auto-load: calling an unloaded tool loads and executes it transparently", async () => {
-    const harness = await createBabTestHarness([], { BAB_LAZY_TOOLS: "1" });
+    const harness = await createBabTestHarness();
     activeHarnesses.push(harness);
 
     // version is always loaded — use it as a sanity check first
@@ -195,7 +195,7 @@ describe("Lazy tool loading — integration", () => {
   });
 
   test("unknown tool returns not_found even in lazy mode", async () => {
-    const harness = await createBabTestHarness([], { BAB_LAZY_TOOLS: "1" });
+    const harness = await createBabTestHarness();
     activeHarnesses.push(harness);
 
     const result = await harness.callTool({
@@ -211,7 +211,6 @@ describe("Lazy tool loading — integration", () => {
 
   test("disabled tools do not appear in tools() listing and cannot be auto-loaded", async () => {
     const harness = await createBabTestHarness([], {
-      BAB_LAZY_TOOLS: "1",
       BAB_DISABLED_TOOLS: "chat,codereview",
     });
     activeHarnesses.push(harness);
@@ -235,8 +234,8 @@ describe("Lazy tool loading — integration", () => {
     expect(callParsed.type).toBe("not_found");
   });
 
-  test("eager mode (default) still registers all core tools", async () => {
-    const harness = await createBabTestHarness();
+  test("eager mode (BAB_EAGER_TOOLS=1) registers all core tools", async () => {
+    const harness = await createBabTestHarness([], { BAB_EAGER_TOOLS: "1" });
     activeHarnesses.push(harness);
 
     const result = await harness.listTools();
@@ -271,20 +270,22 @@ describe("Tool load failure isolation", () => {
     };
 
     // Add a bad entry (throws) and good entry to the manifest
-    server.manifest.set("bad-tool", {
+    const updated = new Map(server.manifest);
+    updated.set("bad-tool", {
       name: "bad-tool",
       description: "Throws on load",
       category: "info",
       persist: "never",
       factory: () => { throw new Error("factory explosion"); },
     });
-    server.manifest.set("good-tool", {
+    updated.set("good-tool", {
       name: "good-tool",
       description: "Loads fine",
       category: "info",
       persist: "never",
       factory: () => goodTool,
     });
+    server.setManifest(updated);
 
     // Loading the bad tool should return null, not throw
     const badResult = await server.loadFromManifest("bad-tool");
@@ -309,8 +310,8 @@ describe("Tool load failure isolation", () => {
 describe("Context-size benchmark", () => {
   test("lazy mode initial schema payload is smaller than eager mode", async () => {
     const [eagerHarness, lazyHarness] = await Promise.all([
+      createBabTestHarness([], { BAB_EAGER_TOOLS: "1" }),
       createBabTestHarness(),
-      createBabTestHarness([], { BAB_LAZY_TOOLS: "1" }),
     ]);
     activeHarnesses.push(eagerHarness, lazyHarness);
 

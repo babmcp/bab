@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { z } from "zod/v4";
 
 import { currentProcessEnv, sanitizeFileEnv } from "./utils/env";
 
@@ -31,7 +32,40 @@ export interface ParseEnvFileOptions {
   source?: string;
 }
 
-const ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+// ---------------------------------------------------------------------------
+// Zod schemas (#7, #16)
+// ---------------------------------------------------------------------------
+
+const BoolEnv = z.string().transform((v) => v === "1" || v.toLowerCase() === "true");
+
+const CommaSeparatedList = z.string().transform((v) =>
+  v.split(",").map((s) => s.trim()).filter(Boolean),
+);
+
+const PositiveInt = z.string().regex(/^\d+$/u, "must be a positive integer").transform(Number);
+
+export const BabEnvSchema = z.object({
+  BAB_EAGER_TOOLS: BoolEnv.optional(),
+  BAB_PERSIST: z.string().optional(),
+  BAB_DISABLED_TOOLS: CommaSeparatedList.optional(),
+  BAB_ENABLED_TOOLS: CommaSeparatedList.optional(),
+  BAB_CLI_TIMEOUT_MS: PositiveInt.optional(),
+  BAB_MAX_CONCURRENT_PROCESSES: PositiveInt.optional(),
+}).passthrough();
+
+/** Validate known BAB_* env vars via Zod. Returns parsed result or throws with clear messages. */
+function validateBabEnv(env: Record<string, string>): z.infer<typeof BabEnvSchema> {
+  const result = BabEnvSchema.safeParse(env);
+  if (!result.success) {
+    const messages = result.error.issues.map(
+      (issue) => `${issue.path.join(".")}: ${issue.message}`,
+    );
+    throw new Error(`Invalid BAB environment config:\n  ${messages.join("\n  ")}`);
+  }
+  return result.data;
+}
+
+const EnvKeySchema = z.string().regex(/^[A-Z_][A-Z0-9_]*$/u, "invalid environment variable name");
 
 export function getConfigPaths(homeDirectory = homedir()): BabConfigPaths {
   const baseDir = join(homeDirectory, CONFIG_ROOT_DIR, CONFIG_DIR_NAME);
@@ -86,7 +120,8 @@ export function parseEnvFile(
     const key = normalizedLine.slice(0, separatorIndex).trim();
     const value = normalizedLine.slice(separatorIndex + 1);
 
-    if (!ENV_KEY_PATTERN.test(key)) {
+    const keyResult = EnvKeySchema.safeParse(key);
+    if (!keyResult.success) {
       throw new Error(
         `${source}: line ${index + 1}: invalid environment variable name "${key}"`,
       );
@@ -135,6 +170,9 @@ export async function loadConfig(homeDirectory?: string): Promise<BabConfig> {
     ...processEnv,
   };
 
+  // Validate known BAB_* keys via Zod schema (#7)
+  const validated = validateBabEnv(env);
+
   const persistEnabled = env.BAB_PERSIST?.toLowerCase() !== "false";
   const enabledTools = new Set(
     env.BAB_PERSIST_TOOLS ? env.BAB_PERSIST_TOOLS.split(",").map((s) => s.trim()).filter(Boolean) : [],
@@ -145,9 +183,12 @@ export async function loadConfig(homeDirectory?: string): Promise<BabConfig> {
       : [],
   );
 
+  // #6: Lazy loading ON by default; BAB_EAGER_TOOLS=1 opts out
+  const eagerTools = validated.BAB_EAGER_TOOLS === true;
+
   return {
     env,
-    lazyTools: env.BAB_LAZY_TOOLS === "1" || env.BAB_LAZY_TOOLS === "true",
+    lazyTools: !eagerTools,
     paths,
     persistence: {
       enabled: persistEnabled,

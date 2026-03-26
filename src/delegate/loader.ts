@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 
 import YAML from "yaml";
+import { z } from "zod/v4";
 
 import { PluginManifestSchema } from "../types";
 import type { PluginManifest } from "../types";
@@ -110,7 +111,16 @@ export async function loadPlugin(
   );
   const manifestSource = await Bun.file(resolvedManifestPath).text();
   const parsedManifest = YAML.parse(manifestSource, { maxAliasCount: 10 });
-  const manifest = PluginManifestSchema.parse(parsedManifest);
+  const parseResult = PluginManifestSchema.safeParse(parsedManifest);
+
+  if (!parseResult.success) {
+    const issues = z.prettifyError(parseResult.error);
+    throw new Error(
+      `Invalid plugin manifest at ${resolvedManifestPath}:\n${issues}`,
+    );
+  }
+
+  const manifest = parseResult.data;
   const resolvedToolPrompts = await resolveToolPrompts(
     manifest,
     discoveredPlugin.directory,

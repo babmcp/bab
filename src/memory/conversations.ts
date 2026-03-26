@@ -1,5 +1,6 @@
 import type { StorageAdapter } from "./interface";
 import { InMemoryStorageAdapter } from "./memory";
+import { logger } from "../utils/logger";
 
 export const MAX_THREAD_TURNS = 20;
 
@@ -19,7 +20,9 @@ export interface ConversationThread {
 export class ConversationStore {
   constructor(
     private readonly storage: StorageAdapter<ConversationThread> = new InMemoryStorageAdapter<ConversationThread>(),
-  ) {}
+  ) {
+    logger.warn("ConversationStore is in-memory only — all conversation threads will be lost on server restart");
+  }
 
   async createThread(threadId?: string): Promise<ConversationThread> {
     const id = threadId ?? crypto.randomUUID();
