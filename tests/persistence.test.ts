@@ -377,4 +377,24 @@ describe("multi-step workflow report appending", () => {
     expect(content).toContain("## Step 3:");
     expect(content).toContain("Analysis 3.");
   });
+
+  test("four-step continuation does not repeat step numbers", async () => {
+    const root = await mktemp2();
+    await persistReport(p("analyze", "step one", "cont-ms-4", "Analysis 1.", root));
+    await persistReport(p("analyze", "step two", "cont-ms-4", "Analysis 2.", root));
+    await persistReport(p("analyze", "step three", "cont-ms-4", "Analysis 3.", root));
+    await persistReport(p("analyze", "step four", "cont-ms-4", "Analysis 4.", root));
+
+    const files = await readdir(join(root, ".bab", "analyze"));
+    expect(files).toHaveLength(1);
+
+    const content = await readFile(join(root, ".bab", "analyze", files[0]!), "utf8");
+    expect(content).toContain("## Step 2:");
+    expect(content).toContain("## Step 3:");
+    expect(content).toContain("## Step 4:");
+    expect(content).toContain("Analysis 4.");
+    // Ensure no duplicate step numbers
+    const step3Matches = content.match(/## Step 3:/g);
+    expect(step3Matches).toHaveLength(1);
+  });
 });

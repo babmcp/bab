@@ -108,14 +108,15 @@ async function fetchFromProvider(
 
   if (!endpoint) return [];
 
-  const url =
-    providerId === "google" ? `${endpoint}?key=${apiKey}` : endpoint;
+  const url = endpoint;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
-  if (providerId !== "google") {
+  if (providerId === "google") {
+    headers["x-goog-api-key"] = apiKey;
+  } else {
     headers["Authorization"] = `Bearer ${apiKey}`;
   }
 

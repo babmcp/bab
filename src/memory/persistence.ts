@@ -187,8 +187,12 @@ export async function persistReport(input: PersistReportInput): Promise<void> {
 
     if (existingPath) {
       const existing = await readFile(existingPath, "utf8");
-      const stepMatch = /^## Step (\d+):/mu.exec(existing);
-      const nextStep = stepMatch ? Number(stepMatch[1]) + 1 : 2;
+      let maxStep = 1;
+      for (const m of existing.matchAll(/^## Step (\d+):/gmu)) {
+        const n = Number(m[1]);
+        if (n > maxStep) maxStep = n;
+      }
+      const nextStep = maxStep + 1;
       const stepHeading = `## Step ${nextStep}: ${input.inputText.slice(0, 80).trim()}`;
       const appended = [existing.trimEnd(), "", stepHeading, "", input.content.trim()];
       if (input.expertContent) {

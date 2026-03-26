@@ -26,7 +26,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "prepack": "bun run build",
-    "test": "bun test --ignore tests/integration.test.ts --ignore tests/opencode-plugin.e2e.test.ts",
+    "test": "bun test tests/*.test.ts --ignore 'tests/integration.test.ts' --ignore 'tests/opencode-plugin.e2e.test.ts'",
     "test:e2e": "bun test tests/integration.test.ts tests/opencode-plugin.e2e.test.ts --timeout 15000",
     "changelog:update": "git-cliff --config cliff.toml -o CHANGELOG.md"
   },
